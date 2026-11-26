@@ -48,7 +48,21 @@ HarmonyOS 上没有可用的 Electron 运行时，因此采用「**复用官方 
 - 已知限制：**插件系统不可用**（`--jitless` 下无 WebAssembly，QuickJS 跑不起来）；
   UPnP/NAT-PMP、完成后关机、浏览器扩展配对等 Electron 专属能力不提供。
 
-功能矩阵与逐项验收记录见 [docs/CHANGELOG.md](docs/CHANGELOG.md)。
+功能矩阵与逐项验收记录见 [docs/FEATURE-MATRIX.md](docs/FEATURE-MATRIX.md)。
+
+## 项目状态与开发日志
+
+| 文档 | 内容 |
+|---|---|
+| **[docs/PLAN.md](docs/PLAN.md)** | **总览：当前状态 / 轮次工作日志（r1→r46）/ 下一步 / 待决策**（跟随开发进度更新） |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | 每轮改了什么、踩了什么坑 |
+| [docs/FEATURE-MATRIX.md](docs/FEATURE-MATRIX.md) | 逐项能力清单与验收状态 |
+| [docs/testplans/](docs/testplans/) | 每轮真机验证清单与结果 |
+| [docs/BUILD.md](docs/BUILD.md) / [docs/RUNTIME.md](docs/RUNTIME.md) | 出包 / 端侧 Node 运行时 |
+| [docs/RELEASE.md](docs/RELEASE.md) / [docs/TESTING.md](docs/TESTING.md) | 发布与测试方法 |
+
+当前（r46）产物：`com.lyldeer.motrix-2.4.5.0-debug-signed-r46.hap`，
+191,994,335 B，MD5 `51a7876508945ebff2bc53b0814564da`，真机安装通过。
 
 ## 目录结构
 

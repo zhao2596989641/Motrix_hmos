@@ -1,100 +1,185 @@
-# Motrix 鸿蒙移植 · 总计划
+# Motrix 鸿蒙移植 · 工作计划与工作日志（活文档）
 
-> 目标：把 **Motrix Turbo 2.4.5**（官方最新版，Electron 45 + React 19 + Node）移植成
-> HarmonyOS PC 原生应用，跑在 HAP 里，自己起后端、自己显示官方 Web UI，不依赖任何外部服务。
+> **这是本项目的"总览页"**：当前状态、轮次日志、下一步、待决策都在这。
+> 细节分别见 [CHANGELOG](CHANGELOG.md)（每轮改了什么）、[FEATURE-MATRIX](FEATURE-MATRIX.md)（逐项能力清单）、
+> [BUILD](BUILD.md)（出包）、[RUNTIME](RUNTIME.md)（原生运行时）、[RELEASE](RELEASE.md) / [TESTING](TESTING.md)。
 >
-> 项目作者拍板（2026-11-24）：路线 A（server + ArkWeb）、包名 `com.lyldeer.motrix`、
-> API 26（target+compatible 均 `26.0.0`）、工程放 `codes/MotrixOHOS/`、
-> 签名由项目作者在 DevEco 做一次、之后 CLI 出包。
+> 远端仓库（main 分支）：`github.com:zhao2596989641/Motrix_hmos` · `gitcode.com:zhao2596989641/Motrix_hmos`
+> —— 在网页上直接看本文件即可跟随开发进度。
 
 ---
 
-## 一、路线（为什么是它）
+## 一、当前状态（2026-11-26 · r46）
 
-Motrix Turbo 自带一条 **headless server 通道**：`src/server/`（fastify + HTTP/WS）+
-`src/renderer-web`（React 打包产物）。桌面壳（Electron）与手机/网页壳共用同一套
-`src/core/`（架构约束：`src/core/` 不 import electron）。因此鸿蒙移植 = 把这条
-server 通道原样搬到端侧 Node 上跑，再用 **ArkWeb** 加载同源 Web UI，Electron 专属能力
-（托盘/窗口/对话框/开机自启/深链）由 **ArkTS 壳**补齐。
+**一句话**：核心链路（下载/暂停/续传/删除/持久化/后台/通知/主题语言/窗口/托盘/深链/Dock 进度）已在真机跑通；
+r46 包（191,994,335 B）由项目作者真机安装确认可用。
 
-不采用「华为 Electron-on-OHOS 引擎」路线：引擎本体不在任何仓库里（需重编华为私有仓库，
-且只到 Electron 22），与上游 Electron 45 不兼容。
+| 维度 | 状态 |
+|---|---|
+| 装机形态 | HAP `com.lyldeer.motrix`，2in1 / aarch64 / API 26（target+compatible 均 `26.0.0`），debug 签名 |
+| 端侧运行时 | 进程内 `libnode.so.137`（Node 24.2.0，`--jitless`）+ Motrix server（fastify）+ ArkWeb 同源加载官方 Web UI |
+| HAP 体积 | **191,994,335 B**（r46 起 `resfile/app/bin` 不再重复打包，省 11.0 MiB） |
+| 冷启动 | host ready ≈ **2.68 s**（r44 测得；r46 起 `boot-stage.json` 有逐步细分，见待办 1） |
+| 但测通过的 | r38 / r44（回档基线）；r43 因"快速重试"事故被回档；r45（引擎状态单例 store）由 r46 间接验证 |
+| 已知 P0 遗留 | 代理/TUN 未排除 loopback 时前端会报"无法连接服务器"（环境问题，需决策怎么兜，见第四节） |
+
+能力总览（详细逐项见 [FEATURE-MATRIX](FEATURE-MATRIX.md)）：
+
+- ✅ **已真机验证**：HTTP 下载、暂停/续传/删除（含文件）、任务与设置持久化、后台下载、引擎就绪、
+  系统通知、中英文/深浅色、沉浸式标题栏 + 三键避让、窗口尺寸位置记忆、托盘（图标/左键面板/右键菜单/关窗收托盘）、
+  Dock 进度条、深链（magnet / .torrent 打开方式）
+- 🟢 **已实现待点验**：限速档位、任务详情、批量操作、创建种子、Tracker 同步、代理、GeoIP、单实例、
+  在文件夹中显示 / 打开文件 / 外链、UPnP/NAT 显示、Dock 跳转列表（未做）
+- 🟡 **受限**：BT 真实入站连接（网络策略）、中文输入法、剪贴板、拖 `.torrent` 入窗、托盘双主题图标
+- ⛔ **平台不可用**（入口保留/或已隐藏）：插件系统（`--jitless` 无 WebAssembly）、媒体 HLS/DASH、
+  浏览器扩展/CLI 配对、应用内更新、完成后关机（**唯一隐藏的入口**）、开机自启（系统只给查询）、v1 迁移
+
+---
+
+## 二、轮次工作日志（r1 → r46）
+
+> 早期轮次合并记录；r32 起每轮单独一包、单独一次真机验证。详见 [CHANGELOG](CHANGELOG.md)。
+
+| 轮次 | 内容 | 结论 |
+|---|---|---|
+| r1–r17 | 路线选型（server + 端侧 Node + ArkWeb）与硬事实验证；解决 `9568393` 安装失败、better-sqlite3 dlopen、undici WASM 三大卡点 | ✅ P0 真机可用 |
+| r18–r31 | 稳定性/体验打磨：启动看门狗、沉浸式标题栏、窗口记忆、三键避让、通知桥、引擎重启修复、主题语言 | ✅ 逐项验过 |
+| r32 | 托盘常驻（关窗收托盘）+ 左键玻璃面板 v1 + Dock 进度条 + 启动清孤儿 aria2c | ✅ |
+| r35 | 深链与文件关联（`magnet:` + 自定义 UTD `.torrent`）+ 面板视觉修正 | ✅ |
+| r36–r38 | 托盘面板迭代：百分比换算、按钮/间距、三行任务行、固定排序、实时性修复 | ✅ |
+| r39 / r40 | 入口收敛 + HAP 减 11.5MB + 启动诊断（后被回档） | ⏸ 回档，r46 重新落地了体积部分 |
+| r41 | 关于页"移植轮次"徽章 + `boot-stage.json` 阶段时间线 | ✅ |
+| r42 | 关于页开机自启提示 + `scripts/gather-logs.sh` | ✅（脚本后丢失，r46 恢复） |
+| r43 | 尝试"失败 1.5s 快速重试"修仪表板卡启动中 | ❌ **事故**：压满 ArkWeb 6 条连接 → "无法连接服务器"，全部回档 |
+| 回档 | 源码回到 r38 快照，产物 hash 与 r38 完全一致 | ✅ 可用基线 |
+| r44 | 在 r38 基线上重做 A+C 小批（关于页徽章/自启提示、启动时间线、只隐藏关机入口）+ 仓库去敏 | ✅ 真机通过 |
+| r45 | 引擎状态**单例 store**（修"切页回仪表板卡在引擎启动中"）+ 只读网络诊断（`query burst`/`slow query`） | ✅ 由 r46 间接验证 |
+| r46 | `resfile/app/bin` 不随包（**-11.0 MiB**）、启动阶段细分、Dock 进度条失败重试、恢复 gather-logs | ✅ 真机安装可用 |
+
+**踩过的坑（写进 [BUILD](BUILD.md)/[RUNTIME](RUNTIME.md)，别再踩）**：
+HAP `libs/` 下可执行文件必须带扩展名（否则 `9568393`）；签名过的 ELF 覆盖会 `EPERM`（先删后铺）；
+ArkTS 注入脚本里不能出现反引号；ArkUI `@Builder` 参数按值传递（状态值必须内联）；
+ArkWeb 同一 host 只有 **6 条连接**——任何"失败快速重试"都必须先限并发，否则全线超时。
+
+---
+
+## 三、下一步计划（按优先级）
+
+| # | 任务 | 为什么现在做 | 依赖 | 预估 |
+|---|---|---|---|---|
+| 1 | **冷启动优化**：用 r46 的 `boot-stage.json` 细分找出最贵一步（server import / health 等待 / cookie / 平台回滚）再削 | 用户可感知；现在有数据了 | 需要 r46 真机的 `boot-stage.json` | 一轮 |
+| 2 | **发布工程**：release 签名、`versionCode` 策略、clean install 验证、上游补丁清单（`docs/UPSTREAM-PATCHES.md`） | 想长期自用/分发必须过这一关 | 无 | 一轮 |
+| 3 | **待点验能力扫尾**：限速、任务详情、批量、创建种子、Tracker、代理、GeoIP、单实例、reveal/open | 这些"已实现未验"，验完才能叫完成 | 真机逐项点验（可配 devbridge 半自动） | 2–3 轮 |
+| 4 | **代理/TUN 兜底**（待决策，见第四节）：`ProxyController.applyProxyOverride` + bypass `127.0.0.1`，做成可开关 | 环境一变整个前端连不上，体验最差 | 决策 + 一轮验证 | 一轮 |
+| 5 | **功能收口**：Dock 跳转列表、拖 `.torrent` 入窗（若 ArkWeb 允许）、托盘双主题图标、中文 IME 可行性调研 | 锦上添花 | 调研 | 按需 |
+| 6 | **维护工程**：清理仓库里的本机绝对路径、`scripts/` 参数化、CI（可选，端侧跑不了） | 手感 | 无 | 穿插做 |
+
+回滚纪律（不变）：**一轮一包、每包写测试清单、真机验证通过后再叠下一轮**；
+出问题先装回上一版定位，再改。
+
+---
+
+## 四、待维护者拍板的事
+
+1. **代理/TUN 兜底要不要接管 webview 代理？**
+   `insertBypassRule` 只能配在 `ProxyController.applyProxyOverride` 上，而它会**忽略系统级代理**。
+   我们 webview 只连 `127.0.0.1`，理论上安全；但若 UI 里有任何走浏览器网络栈的外网请求，
+   在"必须靠代理上网"的环境里会从"能走代理"变成"直连失败"。当前策略：不改代码，
+   文档要求测试前把 loopback 加进代理例外。
+2. **入口收敛**：插件页、设置"集成"卡片、关于页"检查更新"目前**都可见**（维护者想自己试适配）。
+   要不要在确认不可行后隐藏？（目前只隐藏「完成后关机」）
+3. **插件系统**：`--jitless` 下无 WebAssembly ⇒ 上游 QuickJS 插件不可用。三条路：
+   放弃 / 内嵌原生 QuickJS（重）/ 只支持"无 WASM 的本地插件"。
+4. **发布方式**：只自己用（debug 签名即可）还是要分发给别人（release 签名 + 应用市场 / 侧载包）？
+5. **数据目录/下载目录**：确认 `el2 filesDir/motrix` + `Download/com.lyldeer.motrix` 是长期策略。
+
+---
+
+## 五、里程碑
+
+| 阶段 | 内容 | 状态 |
+|---|---|---|
+| M0 | 调研 + 可行性实测 | ✅ |
+| M1 | 上游依赖、构建产物、better-sqlite3 交叉编译、aria2 选型 | ✅ |
+| M2 | Motrix server 在鸿蒙 PC 上跑通 | ✅ |
+| M3 | HAP 骨架：libmotrixhost.so + ArkWeb 壳 + 首次启动起 Node | ✅ |
+| M4 | 端侧 Node 宿主：端口协商、数据目录、token、探活、退出收尾 | ✅ |
+| M5 | 打包：node_modules 裁剪、resfile 组装、finalize-fs、签名脚本 | ✅（r46 又瘦 11 MiB） |
+| M6 | 系统集成：托盘、通知、深链、单实例、窗口记忆、Dock 进度 | ✅（除开机自启受系统限制） |
+| M7 | 真实下载验收 + 设置/主题/语言 | ✅ 核心验过，长尾见第三节 3 |
+| M8 | 发布工程（release 签名 / versionCode / clean install） | ⬜ 下一步 |
+
+---
+
+## 六、路线与技术决策
+
+Motrix Turbo 自带 headless server 通道（`src/server/` fastify + HTTP/WS）与 `dist/renderer-web`（React）。
+鸿蒙移植 = 把这条通道原样搬到端侧 Node 上跑，用 **ArkWeb 同源加载** `http://127.0.0.1:<port>/`，
+Electron 专属能力（托盘/窗口/对话框/自启/深链）由 **ArkTS 壳**补齐。
 
 ```
 ┌──────────────────────── HAP (com.lyldeer.motrix) ────────────────────────┐
 │ ArkTS 壳（EntryAbility / Index.ets）                                     │
 │   · 窗口 + ArkWeb → http://127.0.0.1:<port>/（同源，官方 Web UI）          │
-│   · 托盘 / 通知 / 目录授权 / 长时任务 / 退出收尾                          │
+│   · 托盘 / 通知 / 深链 / 目录授权 / 长时任务 / 退出收尾                   │
 │   · libmotrixhost.so（NAPI 引导）→ 同进程起 libnode.so.137               │
 │        └─ node --jitless resfile/app/main.mjs                            │
-│              ├─ 启动 dist/server/index.mjs（Motrix server）               │
-│              ├─ spawn bin/aria2c（Motrix fork，已自签名）                  │
-│              └─ spawn bin/motrix-finalize-fs（Rust sidecar，已自签名）     │
+│              ├─ dist/server/index.mjs（Motrix server）                    │
+│              ├─ spawn libs/arm64/aria2c.bin（Motrix fork，应用证书签名）   │
+│              └─ spawn libs/arm64/motrix-finalize-fs.bin（Rust sidecar）    │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 二、已经验证的硬事实（都是本机实测，不是推断）
+关键决策：
+
+1. **端侧 Node 复用 `libnode.so.137`（Node 24.2.0，`--jitless`）**；代价是 WebAssembly 不可用（插件系统）。
+2. **进程内 dlopen + `node::Start` 独立线程**，不 exec 外部 node。
+3. **aria2 用 spawn**（官方 fork 静态二进制，签名后可执行），与上游 `Aria2ProcessManager` 兼容。
+4. **finalize-fs 保持 Rust sidecar**（交叉编译 + 签名，零上游改造）。
+5. **尽量不碰上游源码**：`vendor/motrix/` 是上游快照；渲染层必要的移植改动记录在
+   `docs/UPSTREAM-PATCHES.md`（平台判定、入口可见性、引擎状态 store、诊断日志）。
+6. **数据目录** `context.filesDir/motrix`（el2，覆盖安装保留）；下载目录走 `Download/com.lyldeer.motrix`。
+
+---
+
+## 七、关键实测事实（真机验证，不是推断）
 
 | # | 事实 | 证据 |
 |---|---|---|
-| 1 | **ELF 能不能跑，判据是"代码签名"，不是权限位** | 未签名 `aria2c` → `EACCES`；`binary-sign-tool -selfSign 1` 之后 → 正常 |
-| 2 | **`child_process.spawn` 在鸿蒙沙箱里可用** | node 的 `spawnSync(signed aria2c --version)` 返回 0；`spawn(/bin/sh -c)` 正常 |
-| 3 | **`.node` dlopen 也需要签名** | 未签名 `.node` → `ERR_DLOPEN_FAILED Permission denied`；签名后 → 正常 |
-| 4 | **Motrix 官方 fork 的 aria2 可直接在鸿蒙跑** | `linux-arm64` 版 `1.37.0-motrix.25`，静态链接，带 Async DNS / SQLite3-Persistence / Metalink |
-| 5 | **better-sqlite3 可交叉编译**（NAPI 10，ABI 稳定） | OHOS clang 编出 `.node`，本机 brew node 实测 `pragma/transaction/prepare/all/get/run` 全通 |
-| 6 | **Motrix server 在本机跑通** | `healthz:200` / `index:200` / aria2 RPC 连通 / `query:listTasks` 返回 `[]` |
-| 7 | 本机有完整 CLI 鸿蒙工具链 | `/data/service/hnp/hmos-clt.org/hmos-clt_1.0.0`（hvigor 7.26.11 / SDK 26.0.0.105 / node 24.18.1） |
+| 1 | ELF 能不能跑，判据是**代码签名** | 未签名 `aria2c` → `EACCES`；`binary-sign-tool -selfSign 1` 后可执行；随包 ELF 需**应用证书**签名（自签会被安装器拒：`9568393`） |
+| 2 | `child_process.spawn` 在应用沙箱可用 | `spawnSync(signed aria2c --version)` = 0 |
+| 3 | `.node` dlopen 同样要签名 | 未签名 → `ERR_DLOPEN_FAILED`；签名 / 以 flat `libbetter_sqlite3.so` 随 `libs/` 提供则正常 |
+| 4 | 官方 fork aria2 可直接跑 | `1.37.0-motrix.25` linux-arm64 静态版 |
+| 5 | better-sqlite3 可交叉编译（NAPI 10） | OHOS clang 编出 `.node`，读写/事务全通 |
+| 6 | ArkWeb 同一 host **6 条** HTTP/1.1 连接 | r43 事故日志（948× `NetworkTransactionTimeout`）+ r45 单例化后恢复 |
+| 7 | ArkWeb 尺寸：dpr 1.9、窗口约 1101×734 CSS px | 真机 dump |
+| 8 | `statusBarManager` 托盘：左键 = `StatusBarViewExtensionAbility`，右键 = 菜单；`hideAbility()` 需状态栏挂靠的 `BackGroundAbility` | 真机验证 |
 
-## 三、里程碑
+---
 
-| 阶段 | 内容 | 状态 |
-|---|---|---|
-| M0 | 调研 + 可行性实测（三份报告在 `share/`） | ✅ |
-| M1 | 上游依赖安装、前端/服务端产物构建、better-sqlite3 交叉编译、aria2 选型 | ✅ |
-| M2 | **Motrix server 在本机（HarmonyOS PC）跑通** | ✅ |
-| M3 | HAP 骨架：AppScope/build-profile/hvigor + libmotrixhost.so + ArkWeb 壳 + 首次启动起 Node | ← 进行中 |
-| M4 | 端侧 Node 宿主：端口协商、数据目录、token 注入、就绪探活、退出收尾 | 待做 |
-| M5 | 打包：node_modules 运行时根裁剪、resfile 组装、finalize-fs 交叉编译、签名脚本 | 待做 |
-| M6 | 系统集成：托盘、通知、开机自启、深链（magnet/.torrent）、单实例、窗口记忆 | 待做 |
-| M7 | 真实下载验收（HTTP/BT/磁力）、设置页、暗色、中英文 | 待做 |
-
-## 四、关键技术决策
-
-1. **端侧 Node**：复用 参考宿主项目 验证过的 `libnode.so.137`（Node 24.2.0，`--jitless`）。
-   `--jitless` 的代价是 `WebAssembly === undefined` ⇒ 插件系统（QuickJS wasm）不可用，
-   核心下载/任务/设置不受影响。插件系统先关闭入口，后续再评估。
-2. **不 fork、不 exec Node**：`libmotrixhost.so` 在 ArkTS 进程内 dlopen libnode，
-   `node::Start` 跑在独立线程。参考 参考宿主项目 `hostruntime/src/main/cpp/dshhost.cc`（已验证）。
-3. **aria2 用 spawn，不用进程内 addon**：官方 fork 二进制静态链接、签名后可执行，
-   与上游 `Aria2ProcessManager` 完全兼容（含 sqlite 会话持久化、`--stop-with-process`）。
-4. **finalize-fs 保持 Rust sidecar**：交叉编译到 aarch64-musl 静态二进制后签名即可，
-   零上游改造。本机验证阶段先用 stub 顶替。
-5. **不碰上游源码**：`vendor/motrix/` 是上游快照；平台差异只放
-   `entry/`（ArkTS/C++）与 `scripts/`。唯一的例外是构建期两处（`packageManager` 版本、
-   `cssMinify`）——见 `docs/UPSTREAM-PATCHES.md`。
-6. **数据目录**：`context.filesDir/motrix`（el2，覆盖安装保留）；下载目录走
-   `Download/com.lyldeer.motrix`（用户可见、卸载重装同包名仍可访问）。
-
-## 五、风险与对策
+## 八、风险与对策
 
 | 风险 | 影响 | 对策 |
 |---|---|---|
-| 换包名必须重签（p7b 绑 bundleName） | 出不了安装包 | 项目作者在 DevEco 自动签名一次，之后 CLI 复用物料 |
-| `--jitless` 下 WASM 全灭 | 插件系统不可用 | MVP 先关插件市场入口 |
-| undici 的 llhttp wasm 解析器 | 直链校验/管理 CLI 可能炸 | 实测后改用内置 fetch（4 个调用点） |
-| BT/DHT 入站被系统策略限制 | BT 只能"连出去" | 实测端口绑定；实在不行接受降级 |
-| 前端与 server 必须同源 | 加载方式受限 | ArkWeb 直接载 `http://127.0.0.1:<port>/` |
-| 30+MB node_modules 进 resfile | HAP 体积/首启解压 | 只带 26 个 runtimeRoots；后续可考虑打包内联 |
+| 换包名必须重签（p7b 绑 bundleName/UDID） | 出不了安装包 | 维护者在 DevEco 做一次自动签名，之后 CLI 复用物料（`build-profile.local.json5` 不入库） |
+| `--jitless` 无 WASM | 插件系统不可用 | 入口保留但不支持；后续按第四节 3 决策 |
+| 代理/TUN 劫持 loopback | 前端"无法连接服务器" | 文档要求加例外；r45 诊断日志可判定；必要时按第四节 1 上 bypass |
+| BT 入站受系统策略限制 | BT 只能连出去 | 已实测可下载；极端情况接受降级 |
+| 端侧跑不了原生 `tsc`（SIGSYS）/ Biome 无包 | 本地没有类型检查 | 用 `vitest run` + 打包产物验证；见 [BUILD](BUILD.md) 第 4 节 |
 
-## 六、目录约定
+---
+
+## 九、目录约定
 
 ```
 codes/MotrixOHOS/
-├── vendor/motrix/        # 上游 Motrix Turbo 快照（只读参考，平台改动不落这里）
-├── entry/                # HAP entry 模块（ArkTS 壳 + C++ 引导 + 资源）
-├── AppScope/ build-profile.json5 hvigorfile.ts oh-package.json5
-├── scripts/              # 构建/签名/打包脚本
-├── build/                # 中间产物（不入库）
-├── docs/                 # PLAN / 决策 / 踩坑
-└── share/ -> ../../share # 跨会话交接文档（仓库根）
+├── vendor/motrix/            # 上游 Motrix Turbo 快照（平台改动尽量不落这里，例外见 UPSTREAM-PATCHES）
+├── entry/                    # HAP entry：ArkTS 壳（Index/TrayPanel/runtime）、C++ 引导、资源
+│   └── src/main/resources/resfile/app/   # 端侧 server + 渲染层 + 运行期 node_modules（构建期生成）
+├── scripts/                  # 构建 / 签名 / 打包 / devbridge / host 宿主入口
+├── build/                    # 中间产物（不入库）
+├── docs/                     # PLAN(本文件) / CHANGELOG / FEATURE-MATRIX / BUILD / RUNTIME / RELEASE / TESTING / testplans/
+└── entry/build/default/outputs/default/entry-default-signed.hap   # 产物（不入库）
 ```
+
+> 跨会话交接文档（含真机日志、测试清单位置）在仓库外的 `share/`；长期有效的内容会同步进本目录。
