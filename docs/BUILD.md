@@ -83,9 +83,12 @@ sh scripts/build-hap.sh release    # release
 ```
 
 脚本顺序（不能乱）：交叉编译 better-sqlite3 → 交叉编译 finalize-fs →
-组装 `resfile/app` → **签名 resfile 里的原生二进制** → `hvigorw assembleHap`。
+组装 `resfile/app` → **签名 `build/bin` 里的原生二进制** → 铺进 `entry/libs/arm64-v8a/*.bin`
+→ `hvigorw assembleHap`。
 
 > 签名必须在打包之前：HAP 组装后再改包内字节会破坏 HAP 签名。
+> r46 起 `resfile/app/bin` **不再随包**（端侧执行的是 `libs/arm64-v8a/*.bin`，省约 11.5MB）；
+> 需要旧布局时 `MOTRIX_RESFILE_BIN=1 sh scripts/build-node-bundle.mjs`。
 
 产物：`entry/build/default/outputs/default/entry-default-signed.hap`
 

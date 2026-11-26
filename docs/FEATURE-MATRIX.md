@@ -91,7 +91,7 @@ r33~r35 又把「托盘面板改成 Clash 风格（玻璃 + 网速图 + 任务�
 | B23 | 在文件夹中显示 / 用默认应用打开 / 外链用浏览器打开 | ✅ | 自绘 `motrix-action://` 桥（`PlatformActions`）+ 菜单项已出现；P1 逐项点验 |
 | B24 | 托盘图标深浅主题两套 | 🟡 | `loadIcons()` 白/黑都用了 `startIcon`，未做真正两套图 |
 | B25 | 系统「打开方式」/文件管理器关联（.torrent） | 🟢 | **r35 已实现**（自定义 UTD `com.lyldeer.motrix.torrent` + `linkFeature:"FileOpen"`）；待测（装包后可能需重启设备刷新关联） |
-| B26 | 任务栏/Dock 图标进度条 | 🟢 | **r32 已实现**：`quickBarManager`（API 26，权限 `SET_ABILITY_INSTANCE_INFO`，参考 bilibili_hmos 的 `QuickBarProgress`）；NORMAL/PAUSED/ERROR/NO_PROGRESS；待测。跳转列表仍不做 |
+| B26 | 任务栏/Dock 图标进度条 | 🟢 | **r32 已实现**：`quickBarManager`（API 26，权限 `SET_ABILITY_INSTANCE_INFO`）；NORMAL/PAUSED/ERROR/NO_PROGRESS。**r46 修**：原实现先记 `lastKey` 再推送，`1020210010`（启动早期图标未出现）失败后不再刷新；改为成功才记、失败下 tick 重试。跳转列表仍不做 |
 
 ---
 

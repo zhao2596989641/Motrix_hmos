@@ -45,6 +45,8 @@ export class TaskbarProgress {
   private lastKey: string = '';
   private lastPushAt: number = 0;
   private lastErrorCode: number = 0;
+  /** 连续推送失败次数：瞬时错误（如 1020210010 快捷栏图标还没出现）下一 tick 重试，连续多次才认命 */
+  private consecutiveFailures: number = 0;
   /** 诊断回调：把关键结论同步到 ability-diag.log（真机上 hilog 缓冲不住） */
   private diag: ((line: string) => void) | null = null;
 
@@ -112,8 +114,21 @@ export class TaskbarProgress {
     if (now - this.lastPushAt < PUSH_MIN_GAP_MS) {
       return;
     }
-    this.lastKey = key;
-    await this.push(target.state, target.percent);
+    // 注意：lastKey 必须**推送成功后**才更新。
+    // 之前是先更新再 push，于是 1020210010（快捷栏图标不存在，启动早期常见）这类
+    // 瞬时失败会让 key 永远"看起来已推送"，进度条再也不刷新。
+    const ok = await this.push(target.state, target.percent);
+    if (ok) {
+      this.lastKey = key;
+      this.consecutiveFailures = 0;
+    } else {
+      this.consecutiveFailures += 1;
+      // 连续失败就认命（例如设备根本不支持进度条），避免每 2 秒空转
+      if (this.consecutiveFailures >= 5) {
+        this.lastKey = key;
+        this.consecutiveFailures = 0;
+      }
+    }
   }
 
   /**
@@ -168,27 +183,30 @@ export class TaskbarProgress {
     }
   }
 
-  private async push(state: number, percent: number): Promise<void> {
+  /** 推一次状态；返回是否成功（失败时调用方会下一 tick 重试） */
+  private async push(state: number, percent: number): Promise<boolean> {
     const context = this.context;
     if (context === null) {
-      return;
+      return false;
     }
     this.lastPushAt = Date.now();
     try {
       await quickBarManager.setProgressState(context, state);
       if (state === quickBarManager.ProgressState.NO_PROGRESS) {
-        return;
+        return true;
       }
       const completed = percent <= 0 ? 1 : percent;
       await quickBarManager.setProgressValue(context, completed, 100);
       hilog.debug(DOMAIN, TAG, 'quick bar push state=%{public}d percent=%{public}d', state, completed);
+      return true;
     } catch (error) {
       const err = error as BusinessError;
       // 同一个错误码只记一次，避免每秒刷屏
       if (err.code !== this.lastErrorCode) {
         this.lastErrorCode = err.code;
-        this.log(`quick bar push failed: ${err.code} ${err.message}`);
+        this.log(`quick bar push failed: ${err.code} ${err.message}（下一 tick 重试）`);
       }
+      return false;
     }
   }
 }

@@ -3,6 +3,23 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r46 · HAP 减 11.5MB + 启动阶段细分 + Dock 进度重试（2026-11-26）
+
+打包与诊断，不改变下载/引擎行为。
+
+- **HAP 减体积（-11.5MB）**：`resfile/app/bin/{aria2c,motrix-finalize-fs}` 不再随包
+  （端侧执行的是 `entry/libs/arm64-v8a/*.bin`，`resfile` 那份纯重复）；
+  `build-hap.sh` 第 4 步改为签 `build/bin` 的源文件，`spawn-probe` 不再为不存在的
+  resfile 副本记一条无意义 ENOENT。需要旧布局时 `MOTRIX_RESFILE_BIN=1`。
+- **启动阶段细分**：宿主在 `boot-stage.json` 的 `stages[]` 里新增
+  `server_imported` / `server_healthy` / `operator_token` / `session_cookie` /
+  `platform_restore`，下一轮冷启动优化直接看哪一步吃掉时间。
+- **Dock 进度条重试**：`TaskbarProgress` 原来先更新 `lastKey` 再推送，导致
+  `1020210010`（启动早期快捷栏图标还没出现）这类瞬时失败后进度条**再也不刷新**；
+  改为推送成功才记 `lastKey`，失败下一 tick 重试，连续 5 次才放弃。
+- 恢复 `scripts/gather-logs.sh`（r44 回档时被删）：用户在自己终端一条命令拉全部诊断文件。
+- 关于页徽章：`HarmonyOS Port r46`
+
 ## r45 · 引擎状态单例 store（修"切页回仪表板卡在引擎启动中"）（2026-11-26）
 
 只动渲染层的状态读取方式，**不动**服务端、不新增任何"快速重试"。

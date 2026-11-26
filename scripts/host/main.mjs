@@ -648,7 +648,11 @@ function runSpawnDiagnostics() {
     spawnProbe('libs-finalize-fs', libsFinalize || path.join(execLibsDir, 'motrix-finalize-fs.bin'), []),
     spawnProbe('el2-aria2c', path.join(sandboxBin, 'aria2c'), ['--version']),
     spawnProbe('el2-finalize-fs', path.join(sandboxBin, 'motrix-finalize-fs'), []),
-    spawnProbe('resfile-finalize-fs', path.join(appRoot, 'bin', 'motrix-finalize-fs'), []),
+    // resfile/app/bin 默认不再随包（见 build-node-bundle.mjs 第 5 步）：文件不在就不探，
+    // 免得 spawn-probe.json 里永远挂着一条无意义的 ENOENT。
+    ...(existsQuiet(path.join(appRoot, 'bin', 'motrix-finalize-fs'))
+      ? [spawnProbe('resfile-finalize-fs', path.join(appRoot, 'bin', 'motrix-finalize-fs'), [])]
+      : []),
   ]
   for (const probe of probes) {
     log(`spawn-probe ${probe.label}: ${probe.ok ? 'ok' : 'FAIL'}${probe.ok ? '' : ` (${probe.error || 'status=' + probe.status || 'signal=' + probe.signal})`}`)
@@ -876,8 +880,10 @@ writeStage('shims_ready', { wasm: typeof WebAssembly })
 log('import server…')
 await import(path.join(appRoot, 'dist', 'server', 'index.mjs'))
 log('server module imported; waiting for /healthz…')
+writeStage('server_imported', {})
 await waitHealthy(120_000)
 log('server is healthy')
+writeStage('server_healthy', {})
 
 // ── 本地登录，拿会话 cookie ──────────────────────────────────────────────────
 let operatorToken = env.MOTRIX_OPERATOR_TOKEN || ''
@@ -891,6 +897,7 @@ if (!operatorToken) {
     await sleep(100)
   }
 }
+writeStage('operator_token', { hasToken: Boolean(operatorToken) })
 let cookie = ''
 if (operatorToken) {
   for (let attempt = 0; attempt < 20; attempt++) {
@@ -905,6 +912,7 @@ if (operatorToken) {
   }
 }
 if (!cookie) log('警告：未能拿到会话 cookie（Web UI 会先看到"输入访问令牌"页）')
+writeStage('session_cookie', { hasCookie: Boolean(cookie) })
 
 // ── 平台适配：撤销早期"写死设置"的临时方案 ─────────────────────────────────
 //
@@ -989,6 +997,7 @@ try {
 } catch (error) {
   log('回滚早期平台覆盖失败（不阻断启动）：', error && error.message)
 }
+writeStage('platform_restore', {})
 
 // ── 交接给 ArkTS ─────────────────────────────────────────────────────────────
 const readyPath = path.join(dataDir, 'host-ready.json')
