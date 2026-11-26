@@ -135,7 +135,10 @@ struct Index {
     try {
       const path = `${this.filesDir}/arkts-diag.log`;
       const file = fs.openSync(path, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE | fs.OpenMode.APPEND);
-      const stamp = new Date().toISOString().slice(11, 23);
+      // r53：本地时间（上游/旧实现用 toISOString ⇒ UTC，北京时间会早 8 小时）
+      const now = new Date();
+      const pad2 = (value: number): string => value < 10 ? `0${value}` : `${value}`;
+      const stamp = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}.${now.getMilliseconds() < 100 ? (now.getMilliseconds() < 10 ? `00${now.getMilliseconds()}` : `0${now.getMilliseconds()}`) : `${now.getMilliseconds()}`}`;
       fs.writeSync(file.fd, `${stamp} ${line}\n`);
       fs.closeSync(file);
     } catch (error) {
@@ -176,7 +179,7 @@ struct Index {
   state.language = ${JSON.stringify(language)};
   state.colorMode = ${JSON.stringify(colorMode)};
   // 移植轮次：关于页用它显示 "HarmonyOS Port rNN" 徽章
-  state.portVersion = 'r52';
+  state.portVersion = 'r53';
   // 端侧插件运行时是否可用，取决于端侧 Node 能不能拿到**可执行内存**（JIT/WASM）：
   // 有 ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY 的 ACL ⇒ Node 不带 --jitless，
   // 上游 QuickJS 插件沙箱原样可用（'ready'）；否则回退 --jitless（'unavailable'，

@@ -67,7 +67,10 @@ export default class EntryAbility extends UIAbility {
         this.diagPath,
         fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE | fs.OpenMode.APPEND
       );
-      const stamp = new Date().toISOString().slice(11, 23);
+      // r53：本地时间（上游/旧实现用 toISOString ⇒ UTC，北京时间会早 8 小时）
+      const now = new Date();
+      const pad2 = (value: number): string => value < 10 ? `0${value}` : `${value}`;
+      const stamp = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}.${now.getMilliseconds() < 100 ? (now.getMilliseconds() < 10 ? `00${now.getMilliseconds()}` : `0${now.getMilliseconds()}`) : `${now.getMilliseconds()}`}`;
       fs.writeSync(file.fd, `${stamp} ${line}\n`);
       fs.closeSync(file);
     } catch (error) {

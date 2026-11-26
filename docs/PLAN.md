@@ -18,7 +18,7 @@ r47 起版本号改为 `2.4.5.47` / `240500047`，并修掉了"装插件会让�
 | 维度 | 状态 |
 |---|---|
 | 装机形态 | HAP `com.lyldeer.motrix`，2in1 / aarch64 / API 26（target+compatible 均 `26.0.0`），debug 签名（**只自己用**，见待决策 4） |
-| 版本号 | `versionCode 240500052` / `versionName 2.4.5.52`（方案：上游 2405 + 占位 00 + 轮次 052） |
+| 版本号 | `versionCode 240500053` / `versionName 2.4.5.53`（方案：上游 2405 + 占位 00 + 轮次 053） |
 | JIT / 插件 | **受限 ACL 已到位**（调试 profile `acls` 含 `ALLOW_WRITABLE_CODE_MEMORY`）⇒ r50 起 Node 走 V8 JIT，
 `WebAssembly` 可用、上游 QuickJS 插件沙箱可工作；坚盾模式自动回退 `--jitless` |
 | 端侧运行时 | 进程内 `libnode.so.137`（Node 24.2.0，`--jitless`）+ Motrix server（fastify）+ ArkWeb 同源加载官方 Web UI |
@@ -64,7 +64,8 @@ r47 起版本号改为 `2.4.5.47` / `240500047`，并修掉了"装插件会让�
 | r49 | 引擎启动快连（RPC 退避 500ms→20/40/80…）、JIT 探针驱动（有 ACL 自动走 JIT，否则回退 jitless）、插件运行时状态动态化、受限权限构建开关 | ✅ 代码就绪（JIT 在 r50 生效） |
 | r50 | **JIT 正式启用**（ACL 到位）：Node 不带 `--jitless`、WebAssembly 恢复、上游 QuickJS 插件沙箱可用；清单声明跟随文件状态 | ✅ 真机验证 JIT/WASM/插件沙箱；发现慢插件超时 abort 任务 + 启动激活 +479ms（r51 修） |
 | r51 | 插件健壮化：JIT 下退回原生 undici（不装垫片）、hook 超时 fail-open、startup 激活挪后、RPC 错误日志、签名口令自动同步 | ✅ 代码已出包；真机反馈"两个插件装不上" => 实为内置插件问题（r52） |
-| r52 | **打包官方内置插件**（filename-template / url-resolver）：新增 fetch-builtins 包装器绕过 undici 下载失败，sha256+签名校验后随包提供 | ⏳ 待真机验证（插件页应显示已安装） |
+| r52 | **打包官方内置插件**（filename-template / url-resolver）：新增 fetch-builtins 包装器绕过 undici 下载失败，sha256+签名校验后随包提供 | ✅ 真机日志已见两个 builtin 被发现/按需激活 |
+| r53 | 插件红标自愈（协议噪声不计错 + 激活成功清零 errorCount）；插件日志/ArkTS 诊断日志改本地时区 | ⏳ 待真机验证（红标应消失、时间应为 21:xx） |
 
 **踩过的坑（写进 [BUILD](BUILD.md)/[RUNTIME](RUNTIME.md)，别再踩）**：
 HAP `libs/` 下可执行文件必须带扩展名（否则 `9568393`）；签名过的 ELF 覆盖会 `EPERM`（先删后铺）；

@@ -5,6 +5,9 @@ import type { Worker } from 'node:worker_threads'
 import type { SupportedLocale } from '@shared/constants/locales'
 import { AppError, ErrorCode } from '@shared/errors'
 import type { PluginManifest } from '@shared/types/plugin'
+import { getLogger } from '@core/logger'
+
+const log = getLogger('plugin:host')
 import type { FfmpegDetection } from '../capabilities/ffmpeg-detect'
 import type { CapabilityHost } from '../capabilities/interface'
 import type { GrantsManager } from '../grants/grants-manager'
@@ -676,6 +679,10 @@ export class PluginHost {
             return
           }
           current.ready = true
+          // r53：激活成功即视为"恢复健康"，清零历史错误计数。
+          // 上游只有 recordError、没有 clearError 的调用方（errorCount 只增不减），
+          // 真机上历史错误（jitless 时期的 worker_start_failed 等）会让插件页永远红标。
+          this.opts.stateStore.clearError(pluginId)
           this.opts.stateStore.markActivated(pluginId, Date.now())
           this.opts.registry.refreshState(pluginId)
           resolveReady()
@@ -696,6 +703,16 @@ export class PluginHost {
             this.active.get(pluginId)?.bridge !== bridge ||
             this.quiescing.has(pluginId)
           ) {
+            return
+          }
+          // r53：`concurrent_protocol_violation` 是"超时后迟到的 Hook exit / 过期 capability
+          // 调用被丢弃"的协议噪声（真机上 hook 超时后必然出现），不代表插件真的坏。
+          // 上游会把它算进 plugin.errorCount ⇒ 插件页红标"需要处理"永远消不掉。
+          if (code === 'plugin.hook.concurrent_protocol_violation') {
+            log.warn(
+              { pluginId, code },
+              'ignored stale hook protocol message'
+            )
             return
           }
           const startupFailure =

@@ -3,6 +3,22 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r53 · 插件"需要处理"红标自愈 + 日志时间改本地时区（2026-11-26）
+
+> 真机反馈两件事：①Smart Link 插件页一直挂"需要处理 / 2 个错误"，清日志没用；
+> ②插件日志与 arkts 诊断日志的时间比本地早 8 小时。两者都是上游行为，本轮修掉。
+
+- **红标根因**：插件错误计数存在 `plugin_state` 表，上游只有 `recordError`、**没有任何
+  `clearError` 调用方** ⇒ `errorCount` 只增不减；那 2 个错误来自 r50 的
+  `plugin.hook.concurrent_protocol_violation`（hook 10s 超时后迟到的 exit 被丢弃的协议噪声）。
+  · r53：该 code 不再计入插件错误（只记 warn 日志）；
+  · r53：插件**激活成功时清零历史错误**（自愈）——升级后重启一次，红标即消失。
+- **时间显示**：上游插件日志用 `toISOString()`（UTC）显示（`plugin-log-row.formatTs`），
+  ArkTS 侧 `arkts-diag.log` / `ability-diag.log` 也用了 `toISOString().slice(11,23)`，
+  于是北京时间比本地早 8 小时（时间戳 epoch 本身是对的，只是显示格式）。
+  · r53：插件日志行、ArkTS 两处诊断日志全部改为**本地时区**显示（HH:MM:SS.mmm）。
+- 版本 `2.4.5.53` / `240500053`；徽章 `HarmonyOS Port r53`。
+
 ## r52 · 补上官方内置插件（修"插件市场装不上"的真因）（2026-11-26）
 
 > 真机反馈"两个插件下载不下来" → 实为 **官方内置插件**（`motrix.filename-template` 文件名模板、

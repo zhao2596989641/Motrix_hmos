@@ -10,9 +10,23 @@ const LEVEL_CLASS: Record<PluginLogEntry['level'], string> = {
   fatal: 'text-destructive font-semibold',
 }
 
+function pad(value: number, width = 2): string {
+  return String(value).padStart(width, '0')
+}
+
+/**
+ * HarmonyOS 移植 r53：插件日志时间改为**本机时区**。
+ *
+ * 上游用的是 `toISOString().slice(11, 23)`——那是 UTC 时间；真机上北京时间会显示成
+ * 比本地早 8 小时（用户会误以为日志时间错了）。改成用本地时间逐项拼，
+ * `dateTime`/`title` 保留 ISO（无障碍与悬停提示仍是标准格式）。
+ */
 function formatTs(ts: number): string {
   const d = new Date(ts)
-  return d.toISOString().slice(11, 23)
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(
+    d.getMilliseconds(),
+    3
+  )}`
 }
 
 export function PluginLogRow({ entry }: { entry: PluginLogEntry }) {
