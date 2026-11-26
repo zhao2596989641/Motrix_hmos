@@ -13,6 +13,13 @@ import {
 
 const log = getLogger('plugin:activation')
 
+// HarmonyOS 移植（r47）：`--jitless` 下 WebAssembly === undefined，上游 QuickJS
+// 沙箱（quickjs-emscripten 的 wasm 模块）根本起不来。一旦激活失败，critical 角色
+// 的 hook 会让**整条下载任务链 abort**（真机实证：装插件后 HTTP 任务直接 failed）。
+// 所以运行时标记"插件运行时不可用"：不激活任何插件 = 没有 hook 链 = 下载不受影响；
+// 插件页会显示"端侧暂不支持"的横幅（见 renderer/lib/platform-actions）。
+let runtimeUnavailableLogged = false
+
 export type HostActivationEvent =
   | { kind: 'startup' }
   | {
@@ -71,6 +78,16 @@ export class ActivationDispatcher {
    * and delegates to `admit()` for cap enforcement + eviction.
    */
   async dispatch(event: HostActivationEvent): Promise<void> {
+    if (typeof WebAssembly === 'undefined') {
+      if (!runtimeUnavailableLogged) {
+        runtimeUnavailableLogged = true
+        log.warn(
+          { event: event.kind },
+          'plugin runtime unavailable (no WebAssembly); activation skipped'
+        )
+      }
+      return
+    }
     const matchingInactive: string[] = []
     const skipped: Array<{ id: string; reason: string }> = []
     // Loop-invariant: tokens depend only on the event, not the per-plugin

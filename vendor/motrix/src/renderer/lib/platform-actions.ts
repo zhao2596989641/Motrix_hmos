@@ -24,6 +24,21 @@ export function isHarmonyShell(): boolean {
   return supportsHostFileActions()
 }
 
+/**
+ * 端侧插件运行时是否可用（原生壳注入 `pluginRuntime: 'unavailable'`）。
+ *
+ * 为什么由原生壳给结论：插件沙箱跑在**端侧 Node**（`--jitless` ⇒ 没有 WebAssembly），
+ * 而 UI 自己跑在 ArkWeb 里（Chromium 有 WebAssembly）——所以渲染层无法自行判断，
+ * 只能读注入值。普通浏览器/上游形态没有这个字段，按"可用"处理。
+ */
+export function pluginsRuntimeAvailable(): boolean {
+  const platform = (
+    globalThis as { __MOTRIX_PLATFORM__?: { pluginRuntime?: unknown } }
+  ).__MOTRIX_PLATFORM__
+  if (platform === undefined || platform === null) return true
+  return platform.pluginRuntime !== 'unavailable'
+}
+
 /** 移植轮次（原生壳注入 __MOTRIX_PLATFORM__.portVersion），用于关于页徽章 */
 export function harmonyPortVersion(): string | null {
   const platform = (

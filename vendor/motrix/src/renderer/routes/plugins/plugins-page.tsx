@@ -1,4 +1,5 @@
 import { PanelShell } from '@renderer/components/desktop-kit/panel/panel-shell'
+import { pluginsRuntimeAvailable } from '@renderer/lib/platform-actions'
 import { Toolbar } from '@renderer/components/desktop-kit/toolbar/toolbar'
 import {
   ToolbarButton,
@@ -145,6 +146,16 @@ export function PluginsPage() {
               </div>
             ) : (
               <div className="flex w-full flex-col gap-4">
+                {!pluginsRuntimeAvailable() && (
+                  <div
+                    data-testid="plugin-runtime-unavailable"
+                    className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5"
+                  >
+                    <p className="text-sm leading-5">
+                      {t('plugins.runtimeUnavailable')}
+                    </p>
+                  </div>
+                )}
                 <RegistryNetworkNotice retry={refresh} pending={refreshing} />
                 <PluginGuidance hasUserManagedPlugin={hasUserManagedPlugin} />
 

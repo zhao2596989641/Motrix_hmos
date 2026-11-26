@@ -2482,6 +2482,7 @@
   },
   "plugins": {
     "title": "插件",
+    "runtimeUnavailable": "端侧插件沙箱（QuickJS）在当前鸿蒙构建里不可用：端侧 Node 运行时不启用 WebAssembly。已安装的插件会保留但不会激活，下载不受影响。运行时方案（放开 JIT 或换原生沙箱）正在评估中。",
     "empty": "尚未安装任何插件。",
     "errors_other": "{{count}} 个错误",
     "status": {

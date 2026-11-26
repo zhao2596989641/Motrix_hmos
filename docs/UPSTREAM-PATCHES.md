@@ -10,7 +10,8 @@
 
 | 文件 | 类型 | 改了什么 |
 |---|---|---|
-| `src/renderer/lib/platform-actions.ts` | ＋ | 平台动作桥：读原生壳注入的 `window.__MOTRIX_PLATFORM__`（`language`/`colorMode`/`portVersion`），提供 `isHarmonyShell()`、`harmonyPortVersion()`、`supportsHostFileActions()`；`reveal/open/外链` 动作编码成 `motrix-action://` 私有 scheme 由 ArkTS `onLoadIntercept` 接管 |
+| `src/renderer/lib/platform-actions.ts` | ＋ | 平台动作桥：读原生壳注入的 `window.__MOTRIX_PLATFORM__`（`language`/`colorMode`/`portVersion`/**`pluginRuntime`**），提供 `isHarmonyShell()`、`harmonyPortVersion()`、`pluginsRuntimeAvailable()`、`supportsHostFileActions()`；`reveal/open/外链` 动作编码成 `motrix-action://` 私有 scheme 由 ArkTS `onLoadIntercept` 接管 |
+| `src/renderer/routes/plugins/plugins-page.tsx` | ～ | **r47**：`pluginsRuntimeAvailable() === false` 时页面顶部显示横幅（端侧插件沙箱不可用、插件保留但不激活、下载不受影响）；文案在 `locales/{en-US,zh-CN}.json` 的 `plugins.runtimeUnavailable` |
 | `src/renderer/lib/platform-bridge.ts` | ～ | 同上，宿主动作桥的渲染层出口 |
 | `src/renderer/lib/initial-theme.ts` | ～ | ArkWeb 的 `prefers-color-scheme` 不可靠 → 初始主题读注入值 |
 | `src/renderer/components/language-sync.tsx` | ～ | 语言跟随系统/注入值（ArkWeb `navigator.language` 不可靠） |
@@ -25,6 +26,8 @@
 |---|---|---|
 | `src/renderer/hooks/use-engine-display-status.ts` | ～ | **r45 重写为模块级单例 store**：全局一份快照 + 最多 1 条在飞读、失败退避 5s→30s、事件流为主通道。原因：ArkWeb 同 host 仅 6 条连接，原"每挂载 2 条读"在切页时压满连接池 → 卡"引擎启动中" |
 | `src/renderer/hooks/use-engine-restart-required-toast.ts` | ～ | 重启提示的阈值/时序适配（端侧引擎启动慢） |
+| `src/core/plugin/host/activation-dispatcher.ts` | ～ | **r47**：`WebAssembly === undefined`（端侧 jitless）时跳过插件激活并只告警一次——否则 QuickJS 沙箱必失败，critical hook 会让整条下载任务 abort |
+| `src/core/plugin/hooks/hook-orchestrator.ts` | ～ | **r47**：`abortsChainOnFailure()` 在无 WebAssembly 时一律返回 false（fail-open），保证插件故障不拖垮下载 |
 | `src/renderer/components/ui/toast.tsx` | ～ | Toast 顶部下移，避让系统三键区域 |
 
 ## 3. 入口可见性（渲染层）

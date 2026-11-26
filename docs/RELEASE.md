@@ -8,8 +8,10 @@
 - [ ] `docs/ASSETS.md` 里的 4 个原生件就位（libnode / aria2c / better-sqlite3 / finalize-fs）
 - [ ] `vendor/motrix` 依赖已安装，且 `dist/server`、`dist/renderer-web` 是最新（改过 `src/renderer/**` 必须重跑 vite）
 - [ ] 签名物料（`.p12 / .cer / .p7b`）填进 `build-profile.json5` 的 `signingConfigs.material`（**别提交**）
-- [ ] `AppScope/app.json5` 的 `versionCode`：**待决策**（当前恒为 `1000000`，覆盖安装即可；
-      若要「每轮可区分」再改成 `1000000 + 轮次号`），`versionName` 跟随上游 `2.4.5.0`
+- [ ] `AppScope/app.json5` 的版本号（方案已定，r47 起执行）：
+      `versionCode = 上游 2405 + 占位 00 + 轮次三位`（r47 = `240500047`），
+      `versionName = 2.4.5.<轮次>`（r47 = `2.4.5.47`）；轮次到三位数后占位让一位（r101 → `24050101`）
+- [ ] 出包后跑 `node scripts/verify-hap.mjs`（签名/原生件/后缀/版本号/渲染层一次校验）
 - [ ] 若换了包名：`module.json5` 的 `executableBinaryPaths`、`build-profile.json5` 的 `bundleName`、
       以及签名 profile 都要同步（p7b 绑 bundleName，旧物料直接作废）
 
@@ -64,9 +66,9 @@ $HDC install <hap>
 
 | 项 | 现状 | 计划 |
 |---|---|---|
-| `versionCode` 策略 | 恒 `1000000`（无上架需求时够用） | 需要「每轮可区分」再定规则 |
-| release 签名 | 只有 debug 签名（`buildMode: debug`） | 出 release 包时用同一套物料 `--mode release` 验证 |
-| clean install | r46 已验证「覆盖安装」可用；**卸载重装未全量验证** | 发版前跑一次本文第三节 |
+| ~~`versionCode` 策略~~ | **已定**：`240500047` / `2.4.5.47`（方案见第一节） | 每轮只改这两处 |
+| ~~release 签名~~ | **只自己用 ⇒ 不做** release 签名与市场分发（debug 签名够用） | — |
+| clean install | 项目作者 2026-11-26 已验证：权限/通知弹窗正常、能连上服务 ⇒ **后续不再重复验** | 发版前可选跑一次 |
 | 冷启动 | host ready ≈ 2.68s，r46 起有逐步细分 | 拿到 `boot-stage.json` 后削最贵一步 |
 | 端侧本机路径 | 脚本/文档里有本机绝对路径（SDK、签名物料、下载目录） | 想给别人构建时参数化 |
 

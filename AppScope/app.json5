@@ -2,9 +2,13 @@
   "app": {
     "bundleName": "com.lyldeer.motrix",
     "vendor": "lyldeer",
-    // versionCode 每次出包必加；versionName 跟随上游 2.4.5，后缀表示壳轮次
-    "versionCode": 1000000,
-    "versionName": "2.4.5.0",
+    // 版本号方案（项目作者 2026-11-26 定）：
+    //   versionCode = 上游 major(1) + minor(1) + patch(2) + 占位(2) + 自身轮次(3, 补零)
+    //                 2   4   05   00   047   → 240500047
+    //   versionName = 上游版本 + "." + 轮次 → 2.4.5.47
+    //   轮次到三位数后占位位让出一位：r101 → 2405 + 0 + 101 = 24050101
+    "versionCode": 240500047,
+    "versionName": "2.4.5.47",
     "icon": "$media:layered_image",
     "label": "$string:app_name"
   }

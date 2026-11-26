@@ -2497,6 +2497,7 @@
   },
   "plugins": {
     "title": "Plugins",
+    "runtimeUnavailable": "Plugins need the embedded QuickJS sandbox, which is unavailable in this HarmonyOS build (the on-device Node runtime has no WebAssembly). Installed plugins are kept but stay inactive, so downloads are not affected. A follow-up round will evaluate a native sandbox.",
     "empty": "No plugins installed yet.",
     "errors_one": "{{count}} error",
     "errors_other": "{{count}} errors",

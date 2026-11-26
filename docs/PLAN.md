@@ -12,11 +12,13 @@
 ## 一、当前状态（2026-11-26 · r46）
 
 **一句话**：核心链路（下载/暂停/续传/删除/持久化/后台/通知/主题语言/窗口/托盘/深链/Dock 进度）已在真机跑通；
-r46 包（191,994,335 B）由项目作者真机安装确认可用。
+r47 起版本号改为 `2.4.5.47` / `240500047`，并修掉了"装插件会让下载失败"的真机 bug；
+插件运行时（QuickJS 沙箱需要 WebAssembly）是否可用，靠本轮的 **W^X 探针**在真机上判定。
 
 | 维度 | 状态 |
 |---|---|
-| 装机形态 | HAP `com.lyldeer.motrix`，2in1 / aarch64 / API 26（target+compatible 均 `26.0.0`），debug 签名 |
+| 装机形态 | HAP `com.lyldeer.motrix`，2in1 / aarch64 / API 26（target+compatible 均 `26.0.0`），debug 签名（**只自己用**，见待决策 4） |
+| 版本号 | `versionCode 240500047` / `versionName 2.4.5.47`（方案：上游 2405 + 占位 00 + 轮次 047） |
 | 端侧运行时 | 进程内 `libnode.so.137`（Node 24.2.0，`--jitless`）+ Motrix server（fastify）+ ArkWeb 同源加载官方 Web UI |
 | HAP 体积 | **191,994,335 B**（r46 起 `resfile/app/bin` 不再重复打包，省 11.0 MiB） |
 | 冷启动 | host ready ≈ **2.68 s**（r44 测得；r46 起 `boot-stage.json` 有逐步细分，见待办 1） |
@@ -55,6 +57,7 @@ r46 包（191,994,335 B）由项目作者真机安装确认可用。
 | r44 | 在 r38 基线上重做 A+C 小批（关于页徽章/自启提示、启动时间线、只隐藏关机入口）+ 仓库去敏 | ✅ 真机通过 |
 | r45 | 引擎状态**单例 store**（修"切页回仪表板卡在引擎启动中"）+ 只读网络诊断（`query burst`/`slow query`） | ✅ 由 r46 间接验证 |
 | r46 | `resfile/app/bin` 不随包（**-11.0 MiB**）、启动阶段细分、Dock 进度条失败重试、恢复 gather-logs | ✅ 真机安装可用 |
+| r47 | 版本号方案（`2.4.5.47`/`240500047`）、**插件不可用时的安全降级**（不再拖垮下载）、W^X 探针、出包自检脚本 | ⏳ 待真机验证 |
 
 **踩过的坑（写进 [BUILD](BUILD.md)/[RUNTIME](RUNTIME.md)，别再踩）**：
 HAP `libs/` 下可执行文件必须带扩展名（否则 `9568393`）；签名过的 ELF 覆盖会 `EPERM`（先删后铺）；
@@ -67,8 +70,9 @@ ArkWeb 同一 host 只有 **6 条连接**——任何"失败快速重试"都必�
 
 | # | 任务 | 为什么现在做 | 依赖 | 预估 |
 |---|---|---|---|---|
-| 1 | **冷启动优化**：用 r46 的 `boot-stage.json` 细分找出最贵一步（server import / health 等待 / cookie / 平台回滚）再削 | 用户可感知；现在有数据了 | 需要 r46 真机的 `boot-stage.json` | 一轮 |
-| 2 | **发布工程**：release 签名、`versionCode` 策略、clean install 验证、上游补丁清单（`docs/UPSTREAM-PATCHES.md`） | 想长期自用/分发必须过这一关 | 无 | 一轮 |
+| 1 | **插件运行时定案**：先看 r47 的 `wx-probe.json`（`execmemAllowed`）。允许 ⇒ 下一版去掉 `--jitless` 试机（上游 QuickJS 沙箱原样可用，还白捡性能）；不允许 ⇒ 换 `node:vm` 沙箱（只自己用可接受） | 你装了插件但跑不起来，且全量下载曾因此失败 | r47 真机 `wx-probe.json` | 1–2 轮 |
+| 2 | **冷启动优化**：r46/r47 的 `boot-stage.json` 已能分段（preflight 218ms / shims 40ms / **server import 1012ms** / **server healthy 700ms**），先削这两块 | 用户可感知 | 无（数据已有） | 一轮 |
+| ~~3~~ | ~~发布工程~~ | **只自己用 ⇒ 大幅收口**：不做 release 签名/市场分发；`versionCode` 方案已落地，出包自检已脚本化（`scripts/verify-hap.mjs`） | 已按 r47 落地 | — |
 | 3 | **待点验能力扫尾**：限速、任务详情、批量、创建种子、Tracker、代理、GeoIP、单实例、reveal/open | 这些"已实现未验"，验完才能叫完成 | 真机逐项点验（可配 devbridge 半自动） | 2–3 轮 |
 | 4 | **代理/TUN 兜底**（待决策，见第四节）：`ProxyController.applyProxyOverride` + bypass `127.0.0.1`，做成可开关 | 环境一变整个前端连不上，体验最差 | 决策 + 一轮验证 | 一轮 |
 | 5 | **功能收口**：Dock 跳转列表、拖 `.torrent` 入窗（若 ArkWeb 允许）、托盘双主题图标、中文 IME 可行性调研 | 锦上添花 | 调研 | 按需 |
@@ -79,21 +83,17 @@ ArkWeb 同一 host 只有 **6 条连接**——任何"失败快速重试"都必�
 
 ---
 
-## 四、待维护者拍板的事
+## 四、待维护者拍板的事（2026-11-26 已定 4 项，1 项待定）
 
-1. **代理/TUN 兜底要不要接管 webview 代理？**
-   `insertBypassRule` 只能配在 `ProxyController.applyProxyOverride` 上，而它会**忽略系统级代理**。
-   我们 webview 只连 `127.0.0.1`，理论上安全；但若 UI 里有任何走浏览器网络栈的外网请求，
-   在"必须靠代理上网"的环境里会从"能走代理"变成"直连失败"。当前策略：不改代码，
-   文档要求测试前把 loopback 加进代理例外。
-2. **入口收敛**：插件页、设置"集成"卡片、关于页"检查更新"目前**都可见**（维护者想自己试适配）。
-   要不要在确认不可行后隐藏？（目前只隐藏「完成后关机」）
-3. **插件系统**：`--jitless` 下无 WebAssembly ⇒ 上游 QuickJS 插件不可用。三条路：
-   放弃 / 内嵌原生 QuickJS（重）/ 只支持"无 WASM 的本地插件"。
-4. **发布方式**：只自己用（debug 签名即可）还是要分发给别人（release 签名 + 应用市场 / 侧载包）？
-5. **数据目录/下载目录**：确认 `el2 filesDir/motrix` + `Download/com.lyldeer.motrix` 是长期策略。
-
----
+1. **代理/TUN 兜底**：**保持现状、不做代码**。维护者在 Clash/代理里自行把 `127.0.0.1`、`::1`、`localhost`
+   加进例外即可（r45 的 `query burst`/`slow query` 诊断可用来确认是否代理问题）。
+2. **入口收敛**：**待定**（插件页、设置"集成"卡片、关于页"检查更新"目前都可见；只隐藏「完成后关机」）。
+3. **插件系统**：已做"坏插件不拖垮下载"的安全降级；**运行时方案待 r47 探针结果**——
+   优先 A（放开 JIT，最原生、性能最好），否则 B（把 QuickJS-WASM 换成 `node:vm`）。
+   参考结论：本机用真实 libnode 实测，不带 `--jitless` 时 `WebAssembly` 与 `quickjs-emscripten` 均正常。
+4. **发布方式**：**只自己用** ⇒ debug 签名即可，不做 release 签名/应用市场；版本号方案已落地。
+5. **数据目录/下载目录**：**保持现状**（`el2 filesDir/motrix` + `Download/com.lyldeer.motrix`）。
+   已核对上游：没有"打开数据目录"入口、也没有用户可见的备份功能 ⇒ 按维护者要求不新增。
 
 ## 五、里程碑
 
@@ -176,7 +176,7 @@ codes/MotrixOHOS/
 ├── vendor/motrix/            # 上游 Motrix Turbo 快照（平台改动尽量不落这里，例外见 UPSTREAM-PATCHES）
 ├── entry/                    # HAP entry：ArkTS 壳（Index/TrayPanel/runtime）、C++ 引导、资源
 │   └── src/main/resources/resfile/app/   # 端侧 server + 渲染层 + 运行期 node_modules（构建期生成）
-├── scripts/                  # 构建 / 签名 / 打包 / devbridge / host 宿主入口
+├── scripts/                  # 构建 / 签名 / 打包 / 出包自检(verify-hap) / devbridge / host 宿主入口
 ├── build/                    # 中间产物（不入库）
 ├── docs/                     # PLAN(本文件) / CHANGELOG / FEATURE-MATRIX / BUILD / RUNTIME / RELEASE / TESTING / testplans/
 └── entry/build/default/outputs/default/entry-default-signed.hap   # 产物（不入库）

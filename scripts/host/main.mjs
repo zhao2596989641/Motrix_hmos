@@ -874,7 +874,12 @@ probeStep('10 defineProperty WebSocket', () => {
 })
 delete globalThis.__motrixWs
 log('probe-11: shim section done')
-writeStage('shims_ready', { wasm: typeof WebAssembly })
+writeStage('shims_ready', {
+  wasm: typeof WebAssembly,
+  // HarmonyOS 移植：无 WebAssembly ⇒ 上游 QuickJS 插件沙箱不可用。
+  // server 侧据此跳过插件激活，并把 hook 失败降级为 fail-open（见 vendor 补丁）。
+  pluginRuntime: typeof WebAssembly === 'undefined' ? 'unavailable' : 'ready',
+})
 
 // ── 启动 server ──────────────────────────────────────────────────────────────
 log('import server…')

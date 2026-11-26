@@ -92,6 +92,15 @@ sh scripts/build-hap.sh release    # release
 
 产物：`entry/build/default/outputs/default/entry-default-signed.hap`
 
+出包后**先跑自检**（签名 / 原生件 / `.bin` 后缀 / main.mjs 一致性 / 版本号 / 渲染层产物一次校验）：
+
+```sh
+node scripts/verify-hap.mjs            # 默认校验上面那个产物，并对照 AppScope/app.json5
+node scripts/verify-hap.mjs <hap> --skip-signature   # 没有 hap-sign-tool 时只做内容自检
+```
+
+失败会列出具体哪项不对（例如"忘了重新 bundle resfile/app"或"versionCode 没改"）。
+
 ## 3. 装机与看日志
 
 ```bash

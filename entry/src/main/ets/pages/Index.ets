@@ -163,7 +163,12 @@ struct Index {
   state.language = ${JSON.stringify(language)};
   state.colorMode = ${JSON.stringify(colorMode)};
   // 移植轮次：关于页用它显示 "HarmonyOS Port rNN" 徽章
-  state.portVersion = 'r46';
+  state.portVersion = 'r47';
+  // 端侧 Node 是 --jitless 起的（无 WebAssembly）⇒ 上游 QuickJS 插件沙箱不可用。
+  // UI 自己跑在 ArkWeb 里，判断不了端侧 Node 的能力，所以由原生壳给结论：
+  // 渲染层据此在插件页显示横幅，并且 server 侧已把插件链降级为 fail-open（不会拖垮下载）。
+  // 以后若放开 JIT 让插件可用，这里改成 'ready' 即可。
+  state.pluginRuntime = 'unavailable';
   var pool = [];
   var originalMatchMedia = window.matchMedia ? window.matchMedia.bind(window) : null;
   function isColorScheme(query) { return String(query).indexOf('prefers-color-scheme') >= 0; }

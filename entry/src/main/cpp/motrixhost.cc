@@ -26,11 +26,14 @@
 #include <hilog/log.h>
 
 #include <atomic>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <dlfcn.h>
 #include <string>
+#include <sys/mman.h>
 #include <thread>
 #include <unistd.h>
 #include <vector>
@@ -121,6 +124,81 @@ void TailNodeOutput(std::string path) {
   }
 }
 
+// ── W^X 探针（r47）────────────────────────────────────────────────────────────
+//
+// 背景：端侧 Node 以 `--jitless` 启动（V8 不申请可写可执行内存），代价是
+// `WebAssembly === undefined`，于是上游 QuickJS 插件沙箱起不来。
+//
+// 要不要放开 JIT，取决于**本进程的 SELinux 域**允不允许 execmem（W^X）。
+// 这里在 app 进程自己身上试两种分配路径，把结论落成 <dataDir>/wx-probe.json：
+//   · mmap(RW) + mprotect(RX)：V8 JIT 的常规路径（W^X 友好）→ mprotectRxErrno == 0 即通过
+//   · mmap(RWX)：一步到位（不少内核/域策略直接拒）
+// 这是纯试探，不执行任何机器码，失败也只是返回 errno，不影响后续启动。
+namespace {
+
+struct WxProbeResult {
+  long pageSize = 0;
+  int rwMmapErrno = 0;
+  int mprotectRxErrno = 0;
+  int mmapRwxErrno = 0;
+};
+
+WxProbeResult ProbeExecMemory() {
+  WxProbeResult result;
+  const long page = ::sysconf(_SC_PAGESIZE);
+  result.pageSize = page > 0 ? page : 4096;
+  const size_t len = static_cast<size_t>(result.pageSize);
+
+  void* rw = ::mmap(nullptr, len, PROT_READ | PROT_WRITE,
+                    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (rw == MAP_FAILED) {
+    result.rwMmapErrno = errno;
+    result.mprotectRxErrno = -1;  // 未走到 mprotect
+  } else {
+    if (::mprotect(rw, len, PROT_READ | PROT_EXEC) != 0) {
+      result.mprotectRxErrno = errno;
+    }
+    ::munmap(rw, len);
+  }
+
+  void* rwx = ::mmap(nullptr, len, PROT_READ | PROT_WRITE | PROT_EXEC,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (rwx == MAP_FAILED) {
+    result.mmapRwxErrno = errno;
+  } else {
+    ::munmap(rwx, len);
+  }
+  return result;
+}
+
+// 必须在 ArkTS 传下来的 env 生效之后调用（要读 MOTRIX_DATA_DIR）。
+void WriteWxProbe() {
+  const WxProbeResult probe = ProbeExecMemory();
+  const bool execmemAllowed =
+      probe.mprotectRxErrno == 0 || probe.mmapRwxErrno == 0;
+  char json[640];
+  std::snprintf(
+      json, sizeof(json),
+      "{\"version\":1,\"pageSize\":%ld,\"rwMmapErrno\":%d,"
+      "\"mprotectRxErrno\":%d,\"mmapRwxErrno\":%d,\"execmemAllowed\":%s,"
+      "\"probedAt\":%lld}",
+      probe.pageSize, probe.rwMmapErrno, probe.mprotectRxErrno,
+      probe.mmapRwxErrno, execmemAllowed ? "true" : "false",
+      static_cast<long long>(::time(nullptr)));
+  OH_LOG_Print(LOG_APP, LOG_INFO, 0x0000, "MOTRIX-WX", "wx-probe %{public}s", json);
+  const char* dataDir = ::getenv("MOTRIX_DATA_DIR");
+  if (dataDir == nullptr || dataDir[0] == '\0') {
+    return;
+  }
+  const std::string path = std::string(dataDir) + "/wx-probe.json";
+  if (FILE* f = ::fopen(path.c_str(), "w")) {
+    ::fputs(json, f);
+    ::fclose(f);
+  }
+}
+
+}  // namespace
+
 // startHost(argv: string[], envPairs: string[]): { started, envApplied, note }
 //   argv 不含 argv[0]（本函数会补一个 "node"）；envPairs 是 "KEY=VALUE" 数组。
 //   同一进程只允许启动一次；线程退出后标记复位（否则一次失败会把此后所有启动永久拒掉）。
@@ -177,6 +255,9 @@ napi_value StartHost(napi_env env, napi_callback_info info) {
   for (std::string& s : g_argStore) {
     g_argv.push_back(&s[0]);
   }
+
+  // r47：JIT/WASM 可行性探针（写在 env 生效之后、起 Node 之前；纯试探不影响启动）。
+  WriteWxProbe();
 
   g_started.store(true);
   g_running.store(true);

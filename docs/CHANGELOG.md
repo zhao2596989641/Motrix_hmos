@@ -3,6 +3,29 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r47 · 版本号方案 + 插件安全降级 + W^X 探针 + 出包自检（2026-11-26）
+
+> 真机验证：待测。产物 `2.4.5.47`（versionCode `240500047`）。
+
+- **版本号方案（项目作者定）**：`versionCode = 上游 2405 + 占位 00 + 轮次 047`（`240500047`），
+  `versionName = 2.4.5.47`；轮次到三位数后占位让一位（r101 → `24050101`）。
+  写进 `AppScope/app.json5` 注释，后续每轮只改这两处。
+- **插件运行时安全降级（修一个真 bug）**：真机日志实证，装插件后**HTTP 任务直接失败**——
+  `plugin chain aborted: ashkan4472.folder-categories: WebAssembly is not defined`。
+  现在 `WebAssembly === undefined` 时：
+  · `ActivationDispatcher.dispatch` 跳过激活（告警只记一次，不刷屏）；
+  · `abortsChainOnFailure` 降级为 **fail-open**：critical 角色插件失败也不再 abort 任务链；
+  · 插件页顶部显示横幅（中英双语）：端侧插件沙箱不可用、插件保留但不激活、下载不受影响。
+  这样"插件坏"不再拖垮下载功能，也不影响后续换运行时方案。
+- **W^X 探针**：`motrixhost.so` 在起 Node 之前试 `mmap(RW) → mprotect(RX)` 与 `mmap(RWX)`，
+  结果写 `<dataDir>/wx-probe.json` 并打 hilog `MOTRIX-WX`。这是判断"能否放开 JIT
+  （从而让上游 QuickJS 插件沙箱原样可用）"的**唯一判据**——本机实验已证明 libnode 本身支持
+  JIT/WASM（不带 `--jitless` 时 `quickjs-emscripten` 能正常 eval），只剩设备域策略未知。
+- **出包自检脚本** `scripts/verify-hap.mjs`：一次校验签名、6 个原生件、可执行文件 `.bin` 后缀、
+  `main.mjs` 与源码一致、`node_modules`/renderer 产物、`module.json` 版本号与 `ets` 轮次串。
+- **上游对照结论**：上游**没有**"打开数据目录"入口，也**没有**用户可见的备份功能
+  （任务列表备份只用于导入流程）⇒ 按项目作者要求**不新增**，数据目录保持现状。
+
 ## r46 · HAP 减 11.5MB + 启动阶段细分 + Dock 进度重试（2026-11-26）
 
 > 真机验证：2026-11-26 **通过**（项目作者装包后确认可用）。产物 191,994,335 B，MD5 `51a7876508945ebff2bc53b0814564da`。

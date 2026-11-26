@@ -130,6 +130,10 @@ interface ChainEntry {
 }
 
 function abortsChainOnFailure(hook: SeriesHook, entry: ChainEntry): boolean {
+  // HarmonyOS 移植（r47）：插件沙箱需要 WebAssembly。缺失时 hook 必然失败，
+  // 这里把"critical 角色失败即 abort 整条任务"降级成 fail-open —— 宁可丢掉插件效果，
+  // 也不能让用户的任务直接失败（真机实证：装插件后所有下载挂掉）。
+  if (typeof WebAssembly === 'undefined') return false
   // This builtin chooses a display name, not the file contents. Its early
   // ordering must not make a downloaded artifact depend on a healthy worker.
   if (hook === 'beforeFinalize' && entry.id === 'motrix.filename-template') {
