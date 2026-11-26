@@ -115,6 +115,9 @@ done
 say "5/5 hvigor assembleHap（$MODE）"
 # r49：JIT 受限权限（ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY）需要在 ACL 通过后
 # 才能在清单里声明；没 ACL 却声明会导致安装失败。所以默认注释，构建前临时解注、退出时还原。
+# 语义：module.json5 的文件状态就是"声明状态"。
+#  · 默认（不设环境变量）：**原样构建**，不擅自改动仓库里的声明；
+#  · MOTRIX_ENABLE_JIT_PERMISSION=1：强制解注（构建后自动还原）——适合仓库默认注释、临时出 JIT 包。
 JIT_PERM="${MOTRIX_ENABLE_JIT_PERMISSION:-0}"
 restore_jit_permission() {
   if [ "$JIT_PERM" = "1" ]; then
@@ -124,9 +127,10 @@ restore_jit_permission() {
 if [ "$JIT_PERM" = "1" ]; then
   trap restore_jit_permission EXIT INT TERM
   "$HVIGOR_NODE" "$HERE/patch-module-permissions.mjs" enable
-  echo "[jit] 本次构建声明 ALLOW_WRITABLE_CODE_MEMORY（需 profile 已有该 ACL）"
+  echo "[jit] 本次构建强制声明 ALLOW_WRITABLE_CODE_MEMORY（需 profile 已有该 ACL）"
 else
-  echo "[jit] 不声明 JIT 受限权限（默认；拿到 ACL 后用 MOTRIX_ENABLE_JIT_PERMISSION=1 构建）"
+  "$HVIGOR_NODE" "$HERE/patch-module-permissions.mjs" status || true
+  echo "[jit] 按 module.json5 当前状态构建（不擅自改动）"
 fi
 export NODE_HOME="$CLT/node"
 export DEVECO_SDK_HOME="$CLT/sdk"

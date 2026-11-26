@@ -3,6 +3,21 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r50 · JIT 正式启用（受限 ACL 已到位，V8 JIT / WebAssembly 恢复）（2026-11-26）
+
+> 维护者在 DevEco 重新自动签名后，调试 profile 的 `acls.allowed-acls` 已包含
+> `ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY`（与 `ALLOW_EXTERNAL_NATIVE_CODE` 并列）——
+> 即官方受限权限已对本应用生效（无需再等 3 个工作日审核）。
+
+- **JIT 打开**：r49 的探针驱动逻辑即刻生效 —— `probeExecMemory()` 返回 true ⇒ Node 不再带 `--jitless`，
+  V8 JIT 与 **`WebAssembly` 恢复可用**；上游 QuickJS 插件沙箱（快速 JS 引擎 wasm）原样工作。
+- **插件运行时**：注入渲染层的 `pluginRuntime` 自动变为 `'ready'` ⇒ 插件页不再显示"端侧不可用"横幅，
+  已安装的插件可以真正激活；server 侧 r47 的 fail-open 兜底保留（插件坏了也不会拖垮下载）。
+- **清单声明策略**：`module.json5` 的受限权限声明改为**跟随文件状态**（r50 起仓库默认**已声明**，因为 ACL 已具备）；
+  `build-hap.sh` 默认不再擅自改动；`MOTRIX_ENABLE_JIT_PERMISSION=1` 仍可用于"仓库注释态临时解注出包"。
+- **降级路径不变**：用户开启「坚盾守护模式」时内核拒绝可执行内存 → 探针 false → 自动回退 `--jitless`，不闪退。
+- 版本 `2.4.5.50` / `240500050`；徽章 `HarmonyOS Port r50`。
+
 ## r49 · 引擎启动快连 + JIT 受限权限就绪（探针驱动、可降级）（2026-11-26）
 
 > 开发者 AI 确认：**匿名内存可执行是内核级管控**（`EINVAL` 就是官方预期），合法途径只有受限 ACL
