@@ -70,8 +70,8 @@ ArkWeb 同一 host 只有 **6 条连接**——任何"失败快速重试"都必�
 
 | # | 任务 | 为什么现在做 | 依赖 | 预估 |
 |---|---|---|---|---|
-| 1 | **插件运行时定案**：先看 r47 的 `wx-probe.json`（`execmemAllowed`）。允许 ⇒ 下一版去掉 `--jitless` 试机（上游 QuickJS 沙箱原样可用，还白捡性能）；不允许 ⇒ 换 `node:vm` 沙箱（只自己用可接受） | 你装了插件但跑不起来，且全量下载曾因此失败 | r47 真机 `wx-probe.json` | 1–2 轮 |
-| 2 | **冷启动优化**：r46/r47 的 `boot-stage.json` 已能分段（preflight 218ms / shims 40ms / **server import 1012ms** / **server healthy 700ms**），先削这两块 | 用户可感知 | 无（数据已有） | 一轮 |
+| 1 | **插件运行时落地**：探针已判 **`execmemAllowed:false`** ⇒ 放开 JIT 不可行。改为在 `quick-js-worker` 接一个 **`node:vm` 兼容层**（无 WebAssembly 时自动切换），先在本地 `dev-local-repro` 用真实 libnode + 真实 server 装内置插件跑通 | 你装了插件跑不起来；方案已定 | 无（本机可全流程验证） | 1–2 轮 |
+| 2 | **冷启动优化**：r47 分段实测 preflight **247ms** / shims 43ms / **server import 971ms** / **server healthy 1234ms**（总 2500ms）；先削 import 与 healthy 两段，并把 spawn 探针挪出关键路径 | 用户可感知 | 无（数据已有） | 一轮 |
 | ~~3~~ | ~~发布工程~~ | **只自己用 ⇒ 大幅收口**：不做 release 签名/市场分发；`versionCode` 方案已落地，出包自检已脚本化（`scripts/verify-hap.mjs`） | 已按 r47 落地 | — |
 | 3 | **待点验能力扫尾**：限速、任务详情、批量、创建种子、Tracker、代理、GeoIP、单实例、reveal/open | 这些"已实现未验"，验完才能叫完成 | 真机逐项点验（可配 devbridge 半自动） | 2–3 轮 |
 | 4 | **代理/TUN 兜底**（待决策，见第四节）：`ProxyController.applyProxyOverride` + bypass `127.0.0.1`，做成可开关 | 环境一变整个前端连不上，体验最差 | 决策 + 一轮验证 | 一轮 |
@@ -88,9 +88,11 @@ ArkWeb 同一 host 只有 **6 条连接**——任何"失败快速重试"都必�
 1. **代理/TUN 兜底**：**保持现状、不做代码**。维护者在 Clash/代理里自行把 `127.0.0.1`、`::1`、`localhost`
    加进例外即可（r45 的 `query burst`/`slow query` 诊断可用来确认是否代理问题）。
 2. **入口收敛**：**待定**（插件页、设置"集成"卡片、关于页"检查更新"目前都可见；只隐藏「完成后关机」）。
-3. **插件系统**：已做"坏插件不拖垮下载"的安全降级；**运行时方案待 r47 探针结果**——
-   优先 A（放开 JIT，最原生、性能最好），否则 B（把 QuickJS-WASM 换成 `node:vm`）。
-   参考结论：本机用真实 libnode 实测，不带 `--jitless` 时 `WebAssembly` 与 `quickjs-emscripten` 均正常。
+3. **插件系统**：探针已答——应用域 **W^X 禁止可执行内存**（`execmemAllowed:false`），
+   所以**放开 JIT 这条路走不通**（B 方案定为唯一可行路线）：
+   在 `quick-js-worker` 里把 QuickJS-WASM 沙箱换成 **`node:vm` 兼容层**（上游 worker 2051 行不动，
+   只换引擎适配层，按 `typeof WebAssembly === 'undefined'` 自动切换）。**只自己用**，`vm` 不是安全边界可接受。
+   落地前先在 `dev-local-repro`（真实 libnode + 真实 server）里装内置插件跑通，再上真机。
 4. **发布方式**：**只自己用** ⇒ debug 签名即可，不做 release 签名/应用市场；版本号方案已落地。
 5. **数据目录/下载目录**：**保持现状**（`el2 filesDir/motrix` + `Download/com.lyldeer.motrix`）。
    已核对上游：没有"打开数据目录"入口、也没有用户可见的备份功能 ⇒ 按维护者要求不新增。
@@ -154,6 +156,8 @@ Electron 专属能力（托盘/窗口/对话框/自启/深链）由 **ArkTS 壳*
 | 6 | ArkWeb 同一 host **6 条** HTTP/1.1 连接 | r43 事故日志（948× `NetworkTransactionTimeout`）+ r45 单例化后恢复 |
 | 7 | ArkWeb 尺寸：dpr 1.9、窗口约 1101×734 CSS px | 真机 dump |
 | 8 | `statusBarManager` 托盘：左键 = `StatusBarViewExtensionAbility`，右键 = 菜单；`hideAbility()` 需状态栏挂靠的 `BackGroundAbility` | 真机验证 |
+| 9 | **应用域禁止可执行内存（W^X）**：`mmap(RW)→mprotect(RX)` 与 `mmap(RWX)` 都返回 `EINVAL` | r47 `wx-probe.json`：`execmemAllowed:false` |
+| 10 | `node:vm` 在 `--jitless` 下**可用**（无 WebAssembly 也行） | r47 本机 libnode 实测（eval/跨 context/async 均正常） |
 
 ---
 

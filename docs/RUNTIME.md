@@ -150,6 +150,26 @@ hdc: code:9568393 error: verify code signature failed.
 **停止**：写 `<SANDBOX_HOME>/host-stop-request`，端侧脚本轮询到即 `process.exit(0)`。
 `stopHost()` 恒返回 `ok:false` —— 进程内 Node 无法从外部线程停，这比"假装停成功"诚实。
 
+## 应用域 W^X 实测（r47，决定能不能放开 JIT）
+
+`--jitless` 不是随便定的：r47 在 app 进程里加了探针（`motrixhost.cc` 的 `WriteWxProbe`，
+起 Node 前试 `mmap(RW)→mprotect(RX)` 与 `mmap(RWX)`，结果写 `<dataDir>/wx-probe.json`）。
+
+真机结果（2026-11-26，r47）：
+
+```json
+{"version":1,"pageSize":4096,"rwMmapErrno":0,"mprotectRxErrno":22,"mmapRwxErrno":22,"execmemAllowed":false}
+```
+
+- `errno 22 = EINVAL`：应用域**不允许可执行匿名内存**（W^X 策略在 mprotect / mmap 层就拒绝）。
+- ⇒ **不能去掉 `--jitless`**：V8 的 JIT/优化编译都要求可执行内存，去掉后进程会起不来。
+- ⇒ `WebAssembly === undefined` 是硬结论；V8 的 `--wasm-jitless`（wasm 解释器）在 `--jitless` 下
+  **依然不暴露 `WebAssembly`**（r47 本机用真实 libnode 实测），没有"半开"的空子。
+- 但 **libnode 本身支持 JIT/WASM**：本机 `develop_tools_debug_hap` 域（更宽松）里不带 `--jitless`
+  跑 `WebAssembly.Module` 与 `quickjs-emscripten` 都正常 —— 所以能力是被**域策略**挡的，不是构建问题。
+- 插件运行时的结论：不能用上游 QuickJS-WASM ⇒ 换 `node:vm` 兼容层（`node:vm` 在 jitless 下实测可用，
+  见 r48 计划）。
+
 ## 构建期依赖（不在仓库里）
 
 | 件 | 来源 | 说明 |
