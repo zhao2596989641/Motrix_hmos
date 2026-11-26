@@ -276,22 +276,50 @@ export class SystemTray {
   }
 
   /**
-   * 加载白/黑两套图标。
+   * 加载白/黑两套图标（r54：华为设计规范要求的**单色自适应**状态栏图标）。
    *
-   * statusBarManager 要求 `image.PixelMap`（不是 Resource），所以从资源读成 PixelMap。
-   * 白/黑分别对应深色/浅色任务栏（系统自己挑）。
+   * 官方口径（`statusBarManager.StatusBarIcon`）：
+   *   · `white` —— 深色壁纸下展示，**建议纯白色**图标；
+   *   · `black` —— 浅色壁纸下展示，**建议纯黑色**图标；
+   *   · 建议尺寸 24vp × 24vp，支持 SVG/PNG 等。
+   *
+   * 以前这里白/黑都读 `app.media.startIcon`（彩色应用图标），在深色壁纸上
+   * 边缘发灰、不像系统图标。现在改成 rawfile 里两张手写的单色 SVG
+   * （`tray_white.svg` / `tray_black.svg`，形状取自上游 extra/tray/tray.svg）。
+   * rawfile 读取失败时退回彩色 startIcon，保证图标至少能出来。
    */
   private async loadIcons(): Promise<statusBarManager.StatusBarIcon | null> {
+    const white = await this.loadRawSvg('tray_white.svg');
+    const black = await this.loadRawSvg('tray_black.svg');
+    if (white !== null && black !== null) {
+      return { white: white, black: black };
+    }
+    hilog.warn(DOMAIN, TAG, 'monochrome tray svg unavailable, fallback to startIcon');
     try {
-      const white = await this.loadPixelMap($r('app.media.startIcon').id);
-      const black = await this.loadPixelMap($r('app.media.startIcon').id);
-      if (white === null || black === null) {
+      const fallback = await this.loadPixelMap($r('app.media.startIcon').id);
+      if (fallback === null) {
         return null;
       }
-      return { white: white, black: black };
+      return { white: fallback, black: fallback };
     } catch (error) {
       const err = error as BusinessError;
-      hilog.warn(DOMAIN, TAG, 'loadIcons failed: %{public}s', err.message);
+      hilog.warn(DOMAIN, TAG, 'loadIcons fallback failed: %{public}s', err.message);
+      return null;
+    }
+  }
+
+  /** 从 rawfile 读单色 SVG 并转 PixelMap（官方示例的做法） */
+  private async loadRawSvg(name: string): Promise<image.PixelMap | null> {
+    try {
+      const data = await this.context.resourceManager.getRawFileContent(name);
+      const source = image.createImageSource(data.buffer as ArrayBuffer);
+      if (source === undefined || source === null) {
+        return null;
+      }
+      return await source.createPixelMap();
+    } catch (error) {
+      const err = error as BusinessError;
+      hilog.warn(DOMAIN, TAG, 'loadRawSvg(%{public}s) failed: %{public}s', name, err.message);
       return null;
     }
   }

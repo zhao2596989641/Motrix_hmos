@@ -87,9 +87,12 @@ struct Index {
   // 托盘右键页面项：EntryAbility 把目标路由写进 AppStorage，序号变化触发注入
   @StorageProp('motrix.trayRouteSeq') @Watch('onTrayRouteChange') private trayRouteSeq: number = 0;
   @StorageProp('motrix.trayRoutePath') private trayRoutePath: string = '';
+  // 开机自启状态（EntryAbility 查询后写入）：设置页显示状态 + 跳转系统设置按钮
+  @StorageProp('motrix.autoStartupKnown') @Watch('onAutoStartupChange') private autoStartupKnown: boolean = false;
+  @StorageProp('motrix.autoStartupSupported') @Watch('onAutoStartupChange') private autoStartupSupported: boolean = false;
+  @StorageProp('motrix.autoStartupEnabled') @Watch('onAutoStartupChange') private autoStartupEnabled: boolean = false;
 
   @State phase: Phase = Phase.BOOTING;
-  @State statusText: string = '正在启动 Motrix 内核…';
   @State errorText: string = '';
   @State launchUrl: string = '';
   @State logTail: string = '';
@@ -174,12 +177,17 @@ struct Index {
     // 端侧 Node 是否拿到可执行内存（JIT/WASM）——由原生壳探针决定，渲染层据此显示插件横幅
     const pluginRuntime: string =
       (this.host !== null && this.host.isJitAvailable()) ? 'ready' : 'unavailable';
+    // 开机自启：HarmonyOS 只允许查询、不允许应用自己设置（见 EntryAbility.reportAutoStartupStatus）
+    const autoStartup = this.autoStartupStatus();
     return `(function(){
   var state = window.__MOTRIX_PLATFORM__ = window.__MOTRIX_PLATFORM__ || {};
   state.language = ${JSON.stringify(language)};
   state.colorMode = ${JSON.stringify(colorMode)};
   // 移植轮次：关于页用它显示 "HarmonyOS Port rNN" 徽章
-  state.portVersion = 'r53';
+  state.portVersion = 'r54';
+  // 开机自启状态：'enabled' | 'disabled' | 'unsupported' | 'unknown'
+  // 设置页据此显示「已开启 / 未开启 / 设备不支持」+ 跳转系统设置的按钮。
+  state.autoStartup = ${JSON.stringify(autoStartup)};
   // 端侧插件运行时是否可用，取决于端侧 Node 能不能拿到**可执行内存**（JIT/WASM）：
   // 有 ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY 的 ACL ⇒ Node 不带 --jitless，
   // 上游 QuickJS 插件沙箱原样可用（'ready'）；否则回退 --jitless（'unavailable'，
@@ -257,10 +265,13 @@ struct Index {
       state.colorMode = values.colorMode;
       pool.forEach(function (mql) { mql._fire(); });
     }
+    if (values.autoStartup) state.autoStartup = values.autoStartup;
     applyThemeClass();
     if (typeof window.__motrixApplyPlatform === 'function') {
       try { window.__motrixApplyPlatform(values); } catch (e) {}
     }
+    // 渲染层监听这个事件来刷新"平台值"（例如设置页里的开机自启状态）
+    try { window.dispatchEvent(new CustomEvent('motrix-platform-change')); } catch (e) {}
   };
   applyThemeClass();
   if (typeof window.__motrixApplyPlatform === 'function') {
@@ -802,8 +813,44 @@ struct Index {
   }
 
   /**
-   * 托盘右键「跳到某页」：EntryAbility 把路由写进 AppStorage 并递增序号，这里把它注入 Web。
+   * 开机自启状态的字符串形式（注入给渲染层）。
    *
+   * unknown  = 壳还没查完（旧壳没有这个字段）→ 设置页不显示状态行，避免误导；
+   * unsupported = 设备/版本不支持该能力（非 PC/2in1 或系统太旧）；
+   * enabled/disabled = 用户是否已在「应用启动管理」里允许 Motrix 自启。
+   */
+  private autoStartupStatus(): string {
+    if (!this.autoStartupKnown) {
+      return 'unknown';
+    }
+    if (!this.autoStartupSupported) {
+      return 'unsupported';
+    }
+    return this.autoStartupEnabled ? 'enabled' : 'disabled';
+  }
+
+  /** 自启状态变化（EntryAbility 查询完成）：把新值推给页面 */
+  onAutoStartupChange(): void {
+    const status = this.autoStartupStatus();
+    this.appendDiag(`push autoStartup -> ${status}`);
+    if (this.launchUrl.length === 0) {
+      return;
+    }
+    const script = `window.__motrixSetPlatform && window.__motrixSetPlatform(${JSON.stringify({
+      autoStartup: status,
+    })});`;
+    try {
+      this.controller.runJavaScript(script).catch((error: BusinessError) => {
+        this.appendDiag(`autoStartup runJavaScript failed: ${error.message}`);
+      });
+    } catch (error) {
+      const err = error as BusinessError;
+      this.appendDiag(`autoStartup runJavaScript threw: ${err.message}`);
+    }
+  }
+
+  /**
+   * 托盘右键「跳到某页」：EntryAbility 把路由写进 AppStorage 并递增序号，这里把它注入 Web。
    * 为什么绕一圈：UIAbility 拿不到 WebviewController（它属于页面），只能走 AppStorage 单向通道；
    * 页面拿到后调用注入的 window.__mtxNav（createHashRouter，改 hash 即可切页、不重载）。
    */
@@ -857,13 +904,12 @@ struct Index {
     }
     try {
       this.phase = Phase.BOOTING;
-      this.statusText = '正在启动 Motrix 内核…';
       // 可能已经在 onWindowStageCreate 里提前 start 了；这里只等结果（重复调用是幂等的）。
       const startOutcome = await (this.hostStart ?? host.start());
       if (!startOutcome.ok) {
         throw new Error(`Node 启动被拒绝：${startOutcome.note}`);
       }
-      this.statusText = '等待下载引擎就绪…';
+      this.appendDiag('boot: 等待下载引擎就绪');
       const ready: HostReady = await host.waitReady();
       this.appendDiag(`host ready pid=${ready.pid} port=${ready.port} cookieLen=${ready.cookie.length}`);
       this.startSystemNotifications();
@@ -883,7 +929,7 @@ struct Index {
       }
 
       this.phase = Phase.LOADING;
-      this.statusText = '正在载入界面…';
+      this.appendDiag('boot: 正在载入界面');
       // '?locale=' 有两个作用：
       //   1. 渲染层的"健康/恢复"兜底 UI 会读 location.search 的 locale 来决定英文还是中文
       //      （web 模式下它拿不到 session，缺这个参数就恒英文）；
@@ -938,7 +984,6 @@ struct Index {
     if (!terminal && this.retryCount < Index.AUTO_RETRY_MAX) {
       this.retryCount += 1;
       this.phase = Phase.BOOTING;
-      this.statusText = `正在重试（${this.retryCount}/${Index.AUTO_RETRY_MAX}）…`;
       // 清掉 launchUrl 让启动页遮住、并把 onPageEnd 重新归零；下次 boot() 会重新 loadUrl
       this.launchUrl = '';
       this.appLoadRequested = false;
@@ -1034,8 +1079,9 @@ struct Index {
             }
             this.phase = Phase.READY;
             this.retryCount = 0;
-            // 启动过程中如果系统外观变过，页面这时才具备接收条件，补推一次
+            // 启动过程中如果系统外观/自启状态变过，页面这时才具备接收条件，补推一次
             this.onSystemAppearanceChange();
+            this.onAutoStartupChange();
           })
           .onErrorReceive((event) => {
             if (!event) {
@@ -1113,10 +1159,14 @@ struct Index {
               this.boot();
             })
           } else {
-            LoadingProgress().width(48).height(48)
-            Text('Motrix').fontSize(22).fontWeight(FontWeight.Medium)
-              .fontColor(this.primaryTextColor())
-            Text(this.statusText).fontSize(14).fontColor(this.secondaryTextColor())
+            // 开屏（r54，Clash 风格）：**只展示居中 logo**，不显示加载进度圈与文案。
+            // 理由：加载文案对用户没有信息量（真正等待的只有 Node 启动那 1~2 秒），
+            // 而"转圈 + 一串状态文字"反而显得软件很笨重。失败时仍走上面的错误页。
+            Image($r('app.media.startIcon'))
+              .width(112)
+              .height(112)
+              .objectFit(ImageFit.Contain)
+              .draggable(false)
           }
         }
         .width('100%')

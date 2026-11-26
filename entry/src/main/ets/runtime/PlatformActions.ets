@@ -79,6 +79,8 @@ export class PlatformActions {
       void this.openFile(args.path ?? '');
     } else if (action === 'external') {
       void this.openExternal(args.url ?? '');
+    } else if (action === 'autostart') {
+      void this.openAutoStartupSettings();
     } else {
       hilog.warn(DOMAIN, TAG, 'unknown action %{public}s', action);
     }
@@ -136,6 +138,51 @@ export class PlatformActions {
       entities: ['entity.system.browsable'],
     };
     return this.startWant(want, '打开链接');
+  }
+
+  /**
+   * 打开系统设置里的「应用启动管理」附近页面（开机自启只能由用户在那里手动打开）。
+   *
+   * 【为什么不能一键开启】`autoStartupManager` 只提供查询（getAutoStartupStatusForSelf /
+   * isAutoStartupSupported），没有"设置为自启"的三方接口；设置页里也没有公开
+   * 「应用启动管理」的 uri。所以这里按"最接近、用户能自己找到"的顺序降级：
+   *   ① 应用详情页（application_info_entry + pushParams 包名）
+   *   ② 应用与元服务（application_and_service_settings）
+   *   ③ 设置首页
+   * 任一步 startAbility 成功即返回；全失败时给调用方一句错误说明。
+   */
+  async openAutoStartupSettings(): Promise<ActionResult> {
+    const bundleName = this.context.abilityInfo.bundleName;
+    const settingsBundle = 'com.huawei.hmos.settings';
+    const settingsAbility = 'com.huawei.hmos.settings.MainAbility';
+    const candidates: Want[] = [
+      {
+        bundleName: settingsBundle,
+        abilityName: settingsAbility,
+        uri: 'application_info_entry',
+        parameters: { pushParams: bundleName },
+      },
+      {
+        bundleName: settingsBundle,
+        abilityName: settingsAbility,
+        uri: 'application_and_service_settings',
+      },
+      {
+        bundleName: settingsBundle,
+        abilityName: settingsAbility,
+      },
+    ];
+    let lastNote = '';
+    for (const want of candidates) {
+      const result = await this.startWant(want, '系统设置');
+      if (result.ok) {
+        hilog.info(DOMAIN, TAG, 'autostart settings opened via %{public}s',
+          want.uri !== undefined ? want.uri : '(home)');
+        return { ok: true, note: '已打开系统设置' };
+      }
+      lastNote = result.note;
+    }
+    return { ok: false, note: `无法打开系统设置（${lastNote}）` };
   }
 
   // ── 内部 ──────────────────────────────────────────────────────────────────

@@ -540,6 +540,8 @@ export default class EntryAbility extends UIAbility {
     try {
       if (!autoStartupManager.isAutoStartupSupported()) {
         AppStorage.setOrCreate('motrix.autoStartupSupported', false);
+        // known=true 表示"已查询过"：页面上才能区分"设备不支持"与"还没查到"
+        AppStorage.setOrCreate('motrix.autoStartupKnown', true);
         this.diag('auto startup not supported on this device');
         return;
       }
@@ -547,15 +549,18 @@ export default class EntryAbility extends UIAbility {
         .then((enabled: boolean) => {
           AppStorage.setOrCreate('motrix.autoStartupSupported', true);
           AppStorage.setOrCreate('motrix.autoStartupEnabled', enabled);
+          AppStorage.setOrCreate('motrix.autoStartupKnown', true);
           this.diag(`auto startup: supported=true enabled=${enabled}`);
         })
         .catch((error: BusinessError) => {
           AppStorage.setOrCreate('motrix.autoStartupSupported', false);
+          AppStorage.setOrCreate('motrix.autoStartupKnown', true);
           this.diag(`auto startup query failed: ${error.message}`);
         });
     } catch (error) {
       const err = error as BusinessError;
       AppStorage.setOrCreate('motrix.autoStartupSupported', false);
+      AppStorage.setOrCreate('motrix.autoStartupKnown', true);
       this.diag(`auto startup threw: ${err.message}`);
     }
   }

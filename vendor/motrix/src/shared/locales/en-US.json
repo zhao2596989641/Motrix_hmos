@@ -1326,6 +1326,14 @@
       "launchAtStartupDesc": "Start Motrix automatically when you log in.",
       "linuxAutostartDesc": "Manage login startup in your desktop environment.",
       "linuxAutostartGuide": "View setup guide",
+      "harmonyAutostartDesc": "HarmonyOS does not let apps enable auto-start themselves. Add Motrix in Settings → Apps & services → App launch management.",
+      "harmonyAutostartOpen": "Open system settings",
+      "harmonyAutostartUnsupportedHint": "This device does not support auto-start (PC/2in1 only).",
+      "harmonyAutostartStatus": {
+        "enabled": "Current status: enabled",
+        "disabled": "Current status: not enabled",
+        "unsupported": "Current status: unsupported"
+      },
       "showMainWindowAtLogin": "Show window at login",
       "showMainWindowAtLoginDesc": "Hidden with “{{mode}}”.",
       "defaultSaveDir": "Default download folder",
@@ -1536,8 +1544,7 @@
         "websiteDescription": "Visit motrix.app",
         "acknowledgments": "Acknowledgments",
         "acknowledgmentsDescription": "View project credits on motrix.app"
-      },
-      "harmonyAutostartHint": "Auto-start: HarmonyOS does not allow third-party apps to enable it themselves. Allow Motrix in Settings → App launch management (or the system equivalent)."
+      }
     },
     "bittorrent": {
       "trackers": {

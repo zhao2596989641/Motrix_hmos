@@ -40,6 +40,7 @@ import { DirectoryPreferencesStatus } from '@renderer/features/directory-prefere
 import { useDirectoryPreferencesDraft } from '@renderer/features/directory-preferences/use-directory-preferences-draft'
 import { usePortableMode } from '@renderer/hooks/use-portable-mode'
 import { pickDirty } from '@renderer/lib/form-utils'
+import { isHarmonyShell } from '@renderer/lib/platform-actions'
 import { transport } from '@renderer/lib/transport'
 import { RunMode } from '@shared/constants'
 import { getLinuxAutostartUrl } from '@shared/external-urls'
@@ -48,6 +49,7 @@ import { GeneralSettingsAppSchema } from '@shared/schemas/general-settings'
 import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { SettingsCardDialogProps } from './card-types'
+import { HarmonyAutostartRow } from './harmony-autostart-row'
 import { generalFormSchema } from './settings-form-schemas'
 
 export function GeneralDialog({
@@ -261,6 +263,14 @@ export function GeneralDialog({
                     disabled={disabled}
                     className="min-w-0 space-y-4"
                   >
+                    {isHarmonyShell() && (
+                      <>
+                        <h3 className="text-sm font-semibold">
+                          {t('settings.general.startupAndQuitting')}
+                        </h3>
+                        <HarmonyAutostartRow />
+                      </>
+                    )}
                     {!isWeb && (
                       <>
                         <h3 className="text-sm font-semibold">

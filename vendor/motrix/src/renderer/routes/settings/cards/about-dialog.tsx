@@ -56,7 +56,9 @@ export function AboutDialog({
   const portable = usePortableMode()
   const heading = useRef<HTMLHeadingElement>(null)
   const metadata = __MOTRIX_APP_METADATA__
-  const update = useAppUpdate(open)
+  const harmony = isHarmonyShell()
+  // HarmonyOS 移植版没有可用的更新通道：不查询更新状态，也不渲染更新区域。
+  const update = useAppUpdate(open && !harmony)
 
   return (
     <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
@@ -91,30 +93,27 @@ export function AboutDialog({
                 >
                   {metadata.name}
                 </h2>
-                <p className="text-sm font-medium tabular-nums text-muted-foreground">
-                  {t('settings.about.version', {
-                    version: update.state.currentVersion,
-                  })}
-                </p>
-                {portable && (
-                  <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                    {t('settings.portable.title')}
-                  </span>
-                )}
-                {harmonyPortVersion() !== null && (
-                  <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                    HarmonyOS Port {harmonyPortVersion()}
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium tabular-nums text-muted-foreground">
+                    {t('settings.about.version', {
+                      version: update.state.currentVersion,
+                    })}
+                  </p>
+                  {portable && (
+                    <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                      {t('settings.portable.title')}
+                    </span>
+                  )}
+                  {harmonyPortVersion() !== null && (
+                    <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                      HarmonyOS Port {harmonyPortVersion()}
+                    </span>
+                  )}
+                </div>
               </div>
               <p className="mt-1 max-w-md text-xs leading-[1.45] text-muted-foreground">
                 {t('settings.about.tagline')}
               </p>
-              {isHarmonyShell() && (
-                <p className="mt-2 max-w-md rounded-md bg-muted/60 px-3 py-2 text-xs leading-[1.5] text-muted-foreground">
-                  {t('settings.about.harmonyAutostartHint')}
-                </p>
-              )}
               <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
                 <span>
                   {t('settings.about.details.createdBy')}{' '}
@@ -171,21 +170,27 @@ export function AboutDialog({
           </nav>
         </section>
 
-        <ScrollArea className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <ScrollAreaViewport
-            data-testid="about-dialog-scroll"
-            tabIndex={-1}
-            className="min-h-0 flex-1 overscroll-contain"
-          >
-            <ScrollAreaContent style={{ minWidth: '100%' }}>
-              <AppUpdateSection update={update} />
-            </ScrollAreaContent>
-          </ScrollAreaViewport>
-          <ScrollBar />
-        </ScrollArea>
+        {!harmony && (
+          <ScrollArea className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <ScrollAreaViewport
+              data-testid="about-dialog-scroll"
+              tabIndex={-1}
+              className="min-h-0 flex-1 overscroll-contain"
+            >
+              <ScrollAreaContent style={{ minWidth: '100%' }}>
+                <AppUpdateSection update={update} />
+              </ScrollAreaContent>
+            </ScrollAreaViewport>
+            <ScrollBar />
+          </ScrollArea>
+        )}
 
         <DialogFooter className="shrink-0 flex-row items-center justify-between gap-4 border-t border-border/70 bg-background/85 px-6 py-3.5 backdrop-blur-xl sm:justify-between">
-          {update.showControls ? <AutomaticUpdateSetting /> : <span />}
+          {!harmony && update.showControls ? (
+            <AutomaticUpdateSetting />
+          ) : (
+            <span />
+          )}
           <Button onClick={onClose} size="sm" className="min-w-20">
             {t('common.close')}
           </Button>

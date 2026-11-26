@@ -1312,6 +1312,14 @@
       "launchAtStartupDesc": "登录时自动启动 Motrix。",
       "linuxAutostartDesc": "请在桌面环境中设置登录启动。",
       "linuxAutostartGuide": "查看设置指南",
+      "harmonyAutostartDesc": "HarmonyOS 不允许应用自行开启开机自启，请在「设置 → 应用和元服务 → 应用启动管理」中手动添加 Motrix。",
+      "harmonyAutostartOpen": "打开系统设置",
+      "harmonyAutostartUnsupportedHint": "当前设备不支持开机自启（该能力仅 PC/2in1 提供）。",
+      "harmonyAutostartStatus": {
+        "enabled": "当前状态：已开启",
+        "disabled": "当前状态：未开启",
+        "unsupported": "当前状态：设备不支持"
+      },
       "showMainWindowAtLogin": "登录时显示窗口",
       "showMainWindowAtLoginDesc": "选择“{{mode}}”时不显示。",
       "defaultSaveDir": "默认下载目录",
@@ -1488,8 +1496,7 @@
         "websiteDescription": "访问 motrix.app",
         "acknowledgments": "致谢",
         "acknowledgmentsDescription": "在 motrix.app 查看项目致谢"
-      },
-      "harmonyAutostartHint": "开机自启：HarmonyOS 不允许三方应用自行设置，请在「设置 → 应用启动管理」中允许 Motrix 自启。"
+      }
     },
     "advanced": {
       "rpc": {

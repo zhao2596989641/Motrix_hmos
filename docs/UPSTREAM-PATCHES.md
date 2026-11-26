@@ -18,6 +18,7 @@
 | `src/renderer/lib/i18n.ts` | ～ | 语言解析适配 |
 | `src/renderer/lib/transport/http-ws.ts` | ～ | ① 纯 JS web 传输（本机就是 web 形态）；② r45 新增**只读诊断**：`query burst`（≥5 条读在飞）/ `slow query`（≥3s），仅鸿蒙壳、每类 ≤12 行 |
 | `src/renderer/lib/open-task-file.ts` | ～ | 「打开文件/显示位置」走平台动作桥（web 上上游恒为 false，菜单项本会消失） |
+| `src/renderer/lib/platform-actions.ts` | ～ | **r54**：新增 `harmonyAutoStartupStatus()` 与 `openAutoStartupSettings()`（前者读壳注入的平台值，后者发 `motrix-action://autostart`） |
 | `src/renderer/platform/web-services.ts` / `platform/nas.ts` | ～ | NAS/Synology 分支在端侧恒不启用 |
 
 ## 2. 引擎与状态（渲染层）
@@ -35,11 +36,13 @@
 | 文件 | 类型 | 改了什么 |
 |---|---|---|
 | `src/renderer/routes/downloads/global-stats-bar.tsx` | ～ | 只隐藏「完成后关机」菜单（`DownloadsMoreMenu`），其余徽章保留 |
-| `src/renderer/routes/settings/cards/about-dialog.tsx` | ～ | 版本旁 `HarmonyOS Port rNN` 徽章 + 「开机自启需去系统设置」提示；检查更新区域保留（点了会失败） |
+| `src/renderer/routes/settings/cards/about-dialog.tsx` | ～ | 版本旁 `HarmonyOS Port rNN` 徽章（**r54 起与 `2.4.5` 中轴对齐**）；**r54：更新区域 + 自动检查开关在鸿蒙壳整块不渲染**，`useAppUpdate(false)` 不再查询更新状态；r42 的「开机自启提示」段已删除（改到设置→通用，见下） |
+| `src/renderer/routes/settings/cards/general-dialog.tsx` | ～ | **r54**：鸿蒙壳在「启动与退出」里插入 `HarmonyAutostartRow`（状态 + 跳转系统设置按钮），替代上游开关 |
+| `src/renderer/routes/settings/cards/harmony-autostart-row.tsx` | ＋ | **r54 新增**：开机自启行。显示 `__MOTRIX_PLATFORM__.autoStartup`（enabled/disabled/unsupported/unknown）+ 监听 `motrix-platform-change` 刷新；按钮发 `motrix-action://autostart` |
 | `src/renderer/routes/dashboard/components/dashboard-grid.tsx` | ～ | 仪表板页头 tooltip 朝向改为 `bottom`（默认朝上会顶到窗口三键区域） |
 | `src/renderer/routes/dashboard/activity/activity-calendar.tsx` | ～ | 活动日历的日期/性能适配（jitless 下渲染开销） |
 | `src/renderer/index.tsx` | ～ | 启动引导补丁（平台值、启动守卫/看门狗） |
-| `src/shared/locales/{en-US,zh-CN}.json` | ～ | 新增/复用文案：`settings.about.harmonyAutostartHint` 等移植专属文案（其它语言 fallback 英文） |
+| `src/shared/locales/{en-US,zh-CN}.json` | ～ | 移植专属文案（其它语言 fallback 英文）：**r54** 新增 `settings.general.harmonyAutostart{Desc,Open,UnsupportedHint,Status.*}`；删除已废弃的 `settings.about.harmonyAutostartHint` |
 
 ## 4. 服务端（`src/server/`、`src/core/`）
 

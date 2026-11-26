@@ -48,6 +48,36 @@ export function harmonyPortVersion(): string | null {
   return typeof version === 'string' && version.length > 0 ? version : null
 }
 
+/**
+ * 开机自启状态（原生壳注入）。
+ *
+ * 为什么需要：HarmonyOS 不允许三方应用自己打开开机自启（`autoStartupManager` 只有查询，
+ * 没有设置），用户必须去「设置 → 应用和元服务 → 应用启动管理」手动添加。
+ * 所以设置页只能显示当前状态 + 给一个跳转按钮，状态由原生壳查询后注入。
+ *
+ * `unknown` 表示壳还没查到（或旧壳没这个字段），此时不显示状态行，避免误导。
+ */
+export type HarmonyAutoStartupStatus =
+  | 'enabled'
+  | 'disabled'
+  | 'unsupported'
+  | 'unknown'
+
+export function harmonyAutoStartupStatus(): HarmonyAutoStartupStatus {
+  const platform = (
+    globalThis as { __MOTRIX_PLATFORM__?: { autoStartup?: unknown } }
+  ).__MOTRIX_PLATFORM__
+  const value = platform?.autoStartup
+  if (
+    value === 'enabled' ||
+    value === 'disabled' ||
+    value === 'unsupported'
+  ) {
+    return value
+  }
+  return 'unknown'
+}
+
 function dispatch(verb: string, params: Record<string, string>): void {
   if (typeof document === 'undefined') return
   const query = Object.entries(params)
@@ -81,4 +111,14 @@ export function openPathWithHost(path: string): void {
 /** 用系统浏览器打开外链 */
 export function openExternalWithHost(url: string): void {
   dispatch('external', { url })
+}
+
+/**
+ * 打开系统设置里的「应用启动管理」附近页面（开机自启只能在那里由用户手动打开）。
+ *
+ * 鸿蒙设置应用没有公开「应用启动管理」页的 uri，所以壳里按顺序尝试：
+ * 应用详情页 → 应用与元服务 → 设置首页，第一个能拉起的就用。
+ */
+export function openAutoStartupSettings(): void {
+  dispatch('autostart', {})
 }
