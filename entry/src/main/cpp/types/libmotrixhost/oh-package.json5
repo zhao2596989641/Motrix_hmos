@@ -1,0 +1,6 @@
+{
+  "name": "libmotrixhost.so",
+  "types": "./index.d.ts",
+  "version": "1.0.0",
+  "description": "Motrix 端侧 Node 运行时引导模块的类型声明"
+}

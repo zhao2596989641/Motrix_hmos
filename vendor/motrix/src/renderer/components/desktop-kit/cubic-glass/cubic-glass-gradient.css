@@ -1,0 +1,52 @@
+.cubic-glass-motion {
+  --cubic-glass-cell-rgb: 251 252 255;
+  --cubic-glass-blue-rgb: 88 145 255;
+  --cubic-glass-cyan-rgb: 94 189 245;
+  --cubic-glass-violet-rgb: 190 168 250;
+  --cubic-glass-pink-rgb: 255 165 228;
+  --cubic-glass-warm-rgb: 247 224 174;
+  opacity: 0;
+}
+
+.dark .cubic-glass-motion {
+  --cubic-glass-cell-rgb: 43 44 50;
+  --cubic-glass-blue-rgb: 70 99 176;
+  --cubic-glass-cyan-rgb: 54 119 159;
+  --cubic-glass-violet-rgb: 104 80 160;
+  --cubic-glass-pink-rgb: 164 94 146;
+  --cubic-glass-warm-rgb: 127 108 68;
+}
+
+.cubic-glass-motion[data-renderer="webgl2"] {
+  opacity: 1;
+}
+
+.cubic-glass-motion[data-effect-load-fade="true"] {
+  transition: opacity 520ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/*
+ * 呼吸动画已搬进 WebGL 着色器（renderer.ts 的 u_breath）。
+ *
+ * 原因：原来这里是 canvas 元素上的 9s 全屏 opacity 动画 —— 在 ArkWeb 的 OSR 合成下
+ * 每帧都要整屏合成一次，实测吃掉 ~27% CPU，整机跟着卡。搬进着色器后只有在到点
+ * 的帧才重绘（12~30fps），呼吸效果保留、代价降到原来的几个百分点。
+ */
+
+:where(html[data-reduced-motion="true"])
+  .cubic-glass-motion[data-effect-load-fade="true"] {
+  transition: none;
+}
+
+:where(html[data-reduced-motion="true"])
+  .cubic-glass-motion[data-effect-breathing="true"]
+  canvas[data-ready="true"] {
+  /* 动画在着色器里由 reduced-motion 控制，这里不再需要停 CSS 动画 */
+  will-change: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cubic-glass-motion[data-effect-load-fade="true"] {
+    transition: none;
+  }
+}

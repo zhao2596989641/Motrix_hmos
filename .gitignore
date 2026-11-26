@@ -1,0 +1,51 @@
+# 构建产物 / 依赖 / 二进制（不进仓库）
+build/
+entry/build/
+entry/.preview/
+entry/.cxx/
+.hvigor/
+.cxx/
+oh_modules/
+node_modules/
+vendor/motrix/node_modules/
+vendor/motrix/dist/
+vendor/motrix/packages/*/target/
+vendor/motrix/e2e/test-results/
+coverage/
+
+# 构建脚本生成的资源包（内含 libnode / aria2c 等百兆级二进制）
+entry/src/main/resources/resfile/
+
+# 随包原生件（需按 docs/ASSETS.md 获取或自行交叉编译）
+entry/libs/arm64-v8a/*.so
+entry/libs/arm64-v8a/*.so.*
+entry/libs/arm64-v8a/*.bin
+build/bin/
+build/native/
+build/*.hap
+
+# 签名物料（**不要提交**：含私钥）
+*.p12
+*.p7b
+*.cer
+*.keystore
+signing/
+local.properties
+
+# HAP / 日志 / 本地环境
+*.hap
+*.log
+logs/
+logs-*/
+*.orig
+*.rej
+.DS_Store
+~$*
+.idea/
+.vscode/
+# 官方 ARKTS skills 文档（体积大且许可不明，不入库）
+docs/skills/
+
+# 本地平替 / 废弃方案（二进制，不入库）
+vendor/esbuild.test
+entry/hnp/

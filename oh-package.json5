@@ -1,0 +1,11 @@
+{
+  "modelVersion": "6.1.1",
+  "name": "motrix-ohos",
+  "version": "2.4.5",
+  "description": "Motrix for HarmonyOS PC",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@ohos/hypium": "1.0.25"
+  }
+}

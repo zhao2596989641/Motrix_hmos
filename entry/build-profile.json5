@@ -1,0 +1,46 @@
+{
+  "apiType": "stageMode",
+  "buildOption": {
+    "resOptions": {
+      "copyCodeResource": {
+        "enable": false
+      }
+    },
+    /*
+     * 走 hvigor 的标准 CMake 路径编原生引导模块（libmotrixhost.so）。
+     * 为什么不用"手工放预编译 .so"：参考宿主项目 实测（D6 E25–E29）——
+     * 手工拷进 entry/libs/ 的 .so 只会被 dlopen、构造器会跑，但
+     * `napi_module_register` 注册的模块**永远不被实例化**（Init 不调用），
+     * 表现为 import 成功但方法 undefined。必须让 hvigor/CMake 生成映射。
+     */
+    "nativeLib": {
+      // true = 不限制后缀，libs/arm64-v8a 下的 aria2c、motrix-finalize-fs（无 .so 后缀）也会进包；
+      // false（默认）只收 .so，bin 会被 hvigor 静默丢掉。
+      "collectAllLibs": true,
+      // hap-bin 的 bin 带 .codesign，DoNativeStrip 再 strip 一次会破坏签名 ⇒ debug/release 都关掉
+      "debugSymbol": {
+        "strip": false
+      }
+    },
+    "externalNativeOptions": {
+      "path": "./src/main/cpp/CMakeLists.txt",
+      "abiFilters": ["arm64-v8a"]
+    }
+  },
+  "buildOptionSet": [
+    {
+      "name": "release",
+      "arkOptions": {
+        "obfuscation": {
+          "ruleOptions": {
+            "enable": false,
+            "files": ["./obfuscation-rules.txt"]
+          }
+        }
+      }
+    }
+  ],
+  "targets": [
+    { "name": "default" }
+  ]
+}

@@ -1,0 +1,19 @@
+// 自定义文件类型：BitTorrent 种子（.torrent）
+//
+// 为什么必须自己声明：HarmonyOS 的 UTD 预置类型里没有 torrent（预置列表只有 tar/zip/bz2 等归档类），
+// 不在 UTD 里登记扩展名，系统的"打开方式"就永远不会把 .torrent 派给我们。
+//
+// 约束（官方《如何处理自定义文件类型》）：TypeId 必须是 <bundleName>.<类型名>；
+// 声明完成后还要在 module.json5 的 abilities[].skills.uris 里用同一个 TypeId 声明打开能力。
+{
+  "UniformDataTypeDeclarations": [
+    {
+      "TypeId": "com.lyldeer.motrix.torrent",
+      "BelongingToTypes": ["general.file"],
+      "FilenameExtensions": [".torrent"],
+      "MIMETypes": ["application/x-bittorrent"],
+      "Description": "BitTorrent 种子文件",
+      "ReferenceURL": ""
+    }
+  ]
+}

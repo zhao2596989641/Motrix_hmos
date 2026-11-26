@@ -1,0 +1,137 @@
+{
+  "module": {
+    "name": "entry",
+    "type": "entry",
+    "description": "$string:module_desc",
+    "mainElement": "EntryAbility",
+    // 自用项目：面向鸿蒙 PC（2in1）为主，顺带兼容平板/手机
+    "deviceTypes": [
+      "2in1",
+      "tablet",
+      "phone"
+    ],
+    "deliveryWithInstall": true,
+    "installationFree": false,
+    // 官方 hap-bin（PC/2in1 + API 24+）：安装时把 libs/ 解压到 <bundle>/libs/arm64/，
+    // 并对 executableBinaryPaths 列出的文件授予执行属性（SELinux label=data_app_el1_file）。
+    // 这是普通应用 exec 随包 ELF 的官方通道；HNP 安装器在 debug 普通应用上过不去（9568407）。
+    "extractNativeLibs": true,
+    // 注意：文件名必须带 "." 后缀。hap-sign-tool（C++ 版）的 IsNativeFile 只接受
+    // “带扩展名且位于 libs/ 下”的条目；无扩展名的 aria2c / motrix-finalize-fs 会被
+    // 静默排除在 HAP 的 NativeLibSignInfo 之外，而安装器会枚举 libs/ 下**所有**文件，
+    // 两边数量对不上就是 `9568393 verify code signature failed`。
+    "executableBinaryPaths": [
+      { "path": "libs/arm64-v8a/aria2c.bin" },
+      { "path": "libs/arm64-v8a/motrix-finalize-fs.bin" }
+    ],
+    "pages": "$profile:main_pages",
+    "requestPermissions": [
+      {
+        "name": "ohos.permission.INTERNET",
+        "reason": "$string:perm_internet_reason",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "always" }
+      },
+      {
+        "name": "ohos.permission.GET_NETWORK_INFO",
+        "reason": "$string:perm_network_info_reason",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "always" }
+      },
+      {
+        // 下载是分钟级到小时级的常驻任务：不声明它，进程一不可见就会被挂起/回收
+        "name": "ohos.permission.KEEP_BACKGROUND_RUNNING",
+        "reason": "$string:perm_keep_background_reason",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "always" }
+      },
+      {
+        // 用户可见的下载目录 Download/com.lyldeer.motrix
+        "name": "ohos.permission.READ_WRITE_DOWNLOAD_DIRECTORY",
+        "reason": "$string:perm_download_reason",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "always" }
+      },
+      {
+        // 用户自己选下载目录时（文档目录）
+        "name": "ohos.permission.READ_WRITE_DOCUMENTS_DIRECTORY",
+        "reason": "$string:perm_documents_reason",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "always" }
+      },
+      {
+        // 端侧要 exec 随包 ELF（aria2c / finalize-fs）：不声明时会以"加载失败"形态出现
+        "name": "ohos.permission.ALLOW_EXTERNAL_NATIVE_CODE",
+        "reason": "$string:perm_internet_reason",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "always" }
+      },
+      {
+        // Dock/任务栏图标上的下载进度条：quickBarManager.setProgressValue/setProgressState
+        // 需要这个 normal/system_grant 权限（不声明会直接 201 Permission denied）
+        "name": "ohos.permission.SET_ABILITY_INSTANCE_INFO",
+        "reason": "$string:perm_quickbar_reason",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "always" }
+      }
+    ],
+    "abilities": [
+      {
+        "name": "EntryAbility",
+        "srcEntry": "./ets/entryability/EntryAbility.ets",
+        "description": "$string:EntryAbility_desc",
+        "icon": "$media:layered_image",
+        "label": "$string:EntryAbility_label",
+        "startWindowIcon": "$media:startIcon",
+        "startWindowBackground": "$color:start_window_background",
+        "exported": true,
+        // 单实例：桌面图标连点不会开出多个窗口（实例 key 由 AbilityStage 决定）
+        "launchType": "singleton",
+        // 长时任务必须声明 backgroundModes，否则 startBackgroundRunning 直接失败
+        "backgroundModes": [
+          "dataTransfer"
+        ],
+        "skills": [
+          {
+            "entities": ["entity.system.home"],
+            "actions": ["ohos.want.action.home"]
+          },
+          {
+            // 深链：magnet:?xt=... —— 浏览器/别的应用点磁力链时，系统按 scheme 找到这里。
+            // 收口在 EntryAbility.handleDeepLink：解析后交给宿主 Node 直接 addMagnetTask。
+            "actions": ["ohos.want.action.viewData"],
+            "uris": [{ "scheme": "magnet" }]
+          },
+          {
+            // 文件关联：.torrent（自定义 UTD 类型，见 resources/rawfile/arkdata/utd/utd.json5）。
+            // linkFeature = FileOpen 才会出现在"打开方式"里。
+            "actions": ["ohos.want.action.viewData"],
+            "uris": [
+              {
+                "scheme": "file",
+                "type": "com.lyldeer.motrix.torrent",
+                "linkFeature": "FileOpen"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        // 托盘后台 Ability：它自己不显示窗口，只负责把本进程"贴"到状态栏图标上。
+        // 没有它，主窗口调用 hideAbility()（关闭→收进托盘）会因缺少
+        // NEW_PROCESS_ATTACH_TO_STATUS_BAR_ITEM 前置条件而失败。
+        "name": "BackGroundAbility",
+        "srcEntry": "./ets/backgroundability/BackGroundAbility.ets",
+        "description": "$string:BackGroundAbility_desc",
+        "icon": "$media:layered_image",
+        "label": "$string:EntryAbility_label",
+        "startWindowIcon": "$media:startIcon",
+        "startWindowBackground": "$color:start_window_background",
+        "exported": true
+      }
+    ],
+    "extensionAbilities": [
+      {
+        // 托盘左键弹窗（自定义 ArkUI 面板）：系统"把面板点亮"的入口
+        "name": "TrayStatusBarAbility",
+        "srcEntry": "./ets/tray/TrayStatusBarAbility.ets",
+        "type": "statusBarView",
+        "description": "$string:TrayStatusBarAbility_desc",
+        "exported": false
+      }
+    ]
+  }
+}

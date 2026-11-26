@@ -1,0 +1,12 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "Motrix 鸿蒙入口模块（ArkTS 壳 + Node 引导）",
+  "main": "",
+  "author": "lyldeer",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "libmotrixhost.so": "file:./src/main/cpp/types/libmotrixhost"
+  }
+}

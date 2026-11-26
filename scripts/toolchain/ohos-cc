@@ -1,0 +1,6 @@
+#!/system/bin/sh
+CLT=${CLT:-/data/service/hnp/hmos-clt.org/hmos-clt_1.0.0}
+B="$CLT/sdk/default/openharmony/native/llvm/bin"
+PATH="$B:/usr/bin:/bin"
+export PATH
+exec "$B/clang" --target=aarch64-linux-ohos "$@"

@@ -1,0 +1,48 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Motrix 下载器"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Motrix 下载器"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "Motrix"
+    },
+    {
+      "name": "perm_internet_reason",
+      "value": "用于下载文件与访问网络"
+    },
+    {
+      "name": "perm_network_info_reason",
+      "value": "用于判断网络状态"
+    },
+    {
+      "name": "perm_keep_background_reason",
+      "value": "用于在后台持续下载"
+    },
+    {
+      "name": "perm_download_reason",
+      "value": "用于把文件保存到下载目录"
+    },
+    {
+      "name": "perm_documents_reason",
+      "value": "用于把文件保存到文档目录"
+    },
+    {
+      "name": "perm_quickbar_reason",
+      "value": "用于在任务栏图标上显示下载进度"
+    },
+    {
+      "name": "BackGroundAbility_desc",
+      "value": "后台下载服务（托盘保活）"
+    },
+    {
+      "name": "TrayStatusBarAbility_desc",
+      "value": "托盘面板"
+    }
+  ]
+}
