@@ -3,6 +3,17 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r43 · 入口恢复显示 + 仪表板"引擎启动中"卡住修复
+
+- **入口恢复**：插件 / 集成卡片 / 应用内更新重新显示（仅保留「完成后关机」隐藏）——
+  维护者要再尝试适配这些能力，先不藏
+- **修复"切页回仪表板显示引擎启动中、页头按钮消失"**：
+  - `useEngineDisplayStatus` 增加**模块级最后一次状态缓存**：dashboard 重挂载立刻显示上次 known-good 状态，
+    不再从默认 `starting` 起步
+  - 查询失败时 **1.5 秒快速重试**（最多 2 次告警），不再等 30 秒轮询
+  - 失败打 `[motrix] engine status read failed` 到 web-console（arkts-diag 可见）
+  - dashboard 挂载打印 `[motrix] dashboard mounted`，便于下次日志定位
+
 ## r42 · 关于页"开机自启"提示 + 日志收集脚本
 
 - 关于页在 HarmonyOS 下多一行提示：**「开机自启：HarmonyOS 不允许三方应用自行设置，请在设置→应用启动管理里允许 Motrix」**

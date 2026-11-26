@@ -1,6 +1,5 @@
 import { PanelShell } from '@renderer/components/desktop-kit/panel/panel-shell'
 import { useOperatorSession } from '@renderer/lib/operator-auth'
-import { isHarmonyShell } from '@renderer/lib/platform-actions'
 import { transport } from '@renderer/lib/transport'
 import { cn } from '@renderer/lib/utils'
 import { useTranslation } from 'react-i18next'
@@ -19,11 +18,8 @@ export function SettingsPage() {
       session.status?.mode === 'synologyDsm' &&
       session.status.nasCapabilities?.settings === true
   )
-  // HarmonyOS 壳：集成卡片里的浏览器扩展 / CLI / AppImage / 媒体工具 / 系统协议端侧都不可用，
-  // 整张卡片隐藏（系统协议关联由原生层通过 skills + UTD 实现，不需要用户设置）
-  const baseCards = isHarmonyShell()
-    ? SETTINGS_CARDS.filter((card) => card.id !== 'integration')
-    : SETTINGS_CARDS
+  // 注：集成卡片曾在鸿蒙壳里隐藏；主人要求先保留（他要试适配），暂时恢复显示。
+  const baseCards = SETTINGS_CARDS
   const cards = isSynology ? [...baseCards, NAS_SETTINGS_CARD] : baseCards
   const activeCard = findCard(cardId, cards)
   const lastRowStart = (columns: number) =>

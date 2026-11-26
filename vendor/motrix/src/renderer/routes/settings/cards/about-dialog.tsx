@@ -175,19 +175,15 @@ export function AboutDialog({
             className="min-h-0 flex-1 overscroll-contain"
           >
             <ScrollAreaContent style={{ minWidth: '100%' }}>
-              {/* HarmonyOS 版不提供应用内更新（发布走手动装机/应用市场），入口隐藏 */}
-              {!isHarmonyShell() && <AppUpdateSection update={update} />}
+              {/* 注：应用内更新曾隐藏；主人要求先保留（他要试适配），暂时恢复显示 */}
+              <AppUpdateSection update={update} />
             </ScrollAreaContent>
           </ScrollAreaViewport>
           <ScrollBar />
         </ScrollArea>
 
         <DialogFooter className="shrink-0 flex-row items-center justify-between gap-4 border-t border-border/70 bg-background/85 px-6 py-3.5 backdrop-blur-xl sm:justify-between">
-          {!isHarmonyShell() && update.showControls ? (
-            <AutomaticUpdateSetting />
-          ) : (
-            <span />
-          )}
+          {update.showControls ? <AutomaticUpdateSetting /> : <span />}
           <Button onClick={onClose} size="sm" className="min-w-20">
             {t('common.close')}
           </Button>

@@ -21,7 +21,6 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from '@renderer/components/ui/sidebar'
-import { isHarmonyShell } from '@renderer/lib/platform-actions'
 import { useLegacyImportNavigation } from '@renderer/features/legacy-import/use-legacy-import-navigation'
 import { LEGACY_MIGRATION_ROUTE } from '@shared/lib/legacy-import-navigation'
 import { useTranslation } from 'react-i18next'
@@ -49,11 +48,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation()
   const direction = useDirection()
   const { visible } = useLegacyImportNavigation()
-  // HarmonyOS 壳里插件系统不可用（--jitless ⇒ 无 WebAssembly，QuickJS 跑不起来）：
-  // 入口直接隐藏，避免用户点进去看到一堆"不可用"。
-  const navItems = isHarmonyShell()
-    ? NAV_ITEMS.filter((item) => item.to !== '/plugins')
-    : NAV_ITEMS
+  // 注：插件入口曾经在鸿蒙壳里隐藏过；主人要求先保留（他要试能不能找到适配办法），
+  // 暂时恢复显示。真正不可用的只有 Electron 专属能力，「完成后关机」仍隐藏。
+  const navItems = NAV_ITEMS
   const items = visible
     ? [
         ...navItems,
