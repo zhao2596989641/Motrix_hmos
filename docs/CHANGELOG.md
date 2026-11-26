@@ -3,6 +3,23 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r52 · 补上官方内置插件（修"插件市场装不上"的真因）（2026-11-26）
+
+> 真机反馈"两个插件下载不下来" → 实为 **官方内置插件**（`motrix.filename-template` 文件名模板、
+> `motrix.url-resolver` URL 解析器）。上游把这些 hook 标为 official builtin，**不允许从市场安装**
+> （`plugin.install.official_builtin_hook`），必须随应用提供；而我们的构建此前从未跑过
+> `fetch-builtins`，`builtin-plugins/` 一直是空目录 ⇒ UI 显示"未安装"、点安装又报错。
+
+- **打包官方内置插件**：新增 `scripts/fetch-builtins.mjs` 包装器——
+  上游脚本在本机用 undici fetch 下 GitHub Release 资产会一路 `fetch failed`，
+  但 Node 原生 fetch 抓同一资产是 200；于是先用原生 fetch 下到 `build/builtin-artifacts/`（缓存，
+  lockfile 变化才重下），再以 `MOTRIX_BUILTIN_ARTIFACT_DIR` 交给上游脚本做
+  **sha256 + Ed25519 签名校验**与解包。当前内置两个插件：
+  `motrix.filename-template@1.1.1`、`motrix.url-resolver@1.0.0`（均 "sig verified"）。
+- HAP 内新增 `resources/resfile/app/builtin-plugins/…`；宿主已通过 `MOTRIX_BUILTIN_PLUGIN_DIR`
+  指过去，registry 会按 builtin 扫描 ⇒ 插件页显示"已安装"，不再需要/不应点"安装"。
+- 版本 `2.4.5.52` / `240500052`；徽章 `HarmonyOS Port r52`。
+
 ## r51 · 插件健壮化 + JIT 下退回原生网络栈 + 签名口令自动同步（2026-11-26）
 
 > 真机 r50 暴露三件事：①插件沙箱真的能跑（JIT 生效），②**慢插件 hook 超时会 abort 任务创建**，
