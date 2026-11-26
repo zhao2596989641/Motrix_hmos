@@ -4,7 +4,7 @@
 > 状态标记已按后续轮次补注（r32~r54 的改动见 [CHANGELOG](CHANGELOG.md)，计划与日志见 [PLAN](PLAN.md)）。
 
 - 当前产物：`com.lyldeer.motrix-2.4.5.54-debug-signed-r54.hap`，192,051,591 B，
-  MD5 `ce43268d5f2d27c37d3e468ae20f9db9`（待真机验证）
+  MD5 `67d514d506b55b0f0521a924d9687f0e`（待真机验证）
 - 依据：r20~r54 测试计划、`logs/` 真机日志、上游 2.4.5 源码对照清点
 
 ---
