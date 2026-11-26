@@ -14,6 +14,10 @@ import {
   ScrollBar,
 } from '@renderer/components/ui/scroll-area'
 import { usePortableMode } from '@renderer/hooks/use-portable-mode'
+import {
+  harmonyPortVersion,
+  isHarmonyShell,
+} from '@renderer/lib/platform-actions'
 import { EXTERNAL_URLS } from '@shared/external-urls'
 import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -97,10 +101,20 @@ export function AboutDialog({
                     {t('settings.portable.title')}
                   </span>
                 )}
+                {harmonyPortVersion() !== null && (
+                  <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    HarmonyOS Port {harmonyPortVersion()}
+                  </span>
+                )}
               </div>
               <p className="mt-1 max-w-md text-xs leading-[1.45] text-muted-foreground">
                 {t('settings.about.tagline')}
               </p>
+              {isHarmonyShell() && (
+                <p className="mt-2 max-w-md rounded-md bg-muted/60 px-3 py-2 text-xs leading-[1.5] text-muted-foreground">
+                  {t('settings.about.harmonyAutostartHint')}
+                </p>
+              )}
               <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
                 <span>
                   {t('settings.about.details.createdBy')}{' '}

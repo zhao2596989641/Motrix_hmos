@@ -162,6 +162,8 @@ struct Index {
   var state = window.__MOTRIX_PLATFORM__ = window.__MOTRIX_PLATFORM__ || {};
   state.language = ${JSON.stringify(language)};
   state.colorMode = ${JSON.stringify(colorMode)};
+  // 移植轮次：关于页用它显示 "HarmonyOS Port rNN" 徽章
+  state.portVersion = 'r44';
   var pool = [];
   var originalMatchMedia = window.matchMedia ? window.matchMedia.bind(window) : null;
   function isColorScheme(query) { return String(query).indexOf('prefers-color-scheme') >= 0; }

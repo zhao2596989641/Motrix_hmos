@@ -105,9 +105,6 @@ cd ../.. && sh scripts/build-hap.sh
 - [Motrix](https://github.com/agalwood/Motrix)（upstream）—— 本项目的基础与 UI
 - [aria2](https://github.com/aria2/aria2) 与 Motrix 的 aria2 fork
 - [Node.js](https://nodejs.org/) / [better-sqlite3](https://github.com/WiseLibs/better-sqlite3)
-- 交互与平台实现思路参考了同设备上的两个开源项目（仅借鉴公开 API 用法与交互设计，代码独立实现）：
-  - Clash Verge 的 HarmonyOS 版本（托盘 `statusBarManager` 左键面板 / 关窗收托盘 / 后台挂靠 Ability）
-  - 同机开源项目 **bilibili_hmos**（其 Electron-on-HarmonyOS 适配层）的 `quickBarManager` Dock 进度条用法
 
 ## 免责声明
 

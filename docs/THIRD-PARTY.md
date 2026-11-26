@@ -21,20 +21,7 @@
 | `cacert.pem` | HTTPS 根证书 | MPL-2.0 | 来自 curl CA bundle |
 | `motrix-finalize-fs` | 落盘收尾 sidecar | MIT | 源码在 `vendor/motrix/packages/finalize-fs/` |
 
-## 三、实现思路参考（非代码复用）
-
-为避免"看起来像照搬"，这里明确说明：本项目代码为本项目独立实现，**未拷贝**下列项目的源码；
-只在公开 API 的用法与交互设计上做了参考（这些也是官方文档/样例里公开的内容）：
-
-- **Clash Verge 的 HarmonyOS 版本**：托盘 `statusBarManager` 三段式交互
-  （左键 ArkUI 面板 / 右键跳页菜单）、关窗收托盘（`hideAbility` + 后台 Ability 挂靠）、
-  面板玻璃配色与卡片版式。
-- **bilibili_hmos**：`quickBarManager`（Dock 图标进度条）的调用方式与节流/错误码处理。
-- **上游 Motrix / aria2 / Node.js / better-sqlite3**：运行时与构建方式。
-
-如上述项目作者认为有不妥之处，请联系调整致谢措辞。
-
-## 四、非官方声明
+## 三、非官方声明
 
 本项目与 Motrix 上游作者、aria2 项目均无隶属关系；不使用官方名义发布，也不代表官方立场。
 "Motrix" 名称与上游图标仅用于说明本移植的出处。

@@ -1488,7 +1488,8 @@
         "websiteDescription": "访问 motrix.app",
         "acknowledgments": "致谢",
         "acknowledgmentsDescription": "在 motrix.app 查看项目致谢"
-      }
+      },
+      "harmonyAutostartHint": "开机自启：HarmonyOS 不允许三方应用自行设置，请在「设置 → 应用启动管理」中允许 Motrix 自启。"
     },
     "advanced": {
       "rpc": {

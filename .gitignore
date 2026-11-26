@@ -49,3 +49,13 @@ docs/skills/
 # 本地平替 / 废弃方案（二进制，不入库）
 vendor/esbuild.test
 entry/hnp/
+
+# DevEco / IDE 本地缓存（含 .cxx 编译数据库，体积大且全是本机路径）
+.bitfun/
+.deveco/
+.hvigor/
+.cxx/
+
+# 本地签名材料（**绝不提交**）
+build-profile.local.json5
+local-signing/

@@ -57,7 +57,12 @@ done
 > 这个 fork 版 aria2 带 **Async DNS + SQLite3-Persistence + Metalink**，
 > 上游 `Aria2ConfigBuilder` 需要的选项它全有（stock 1.37 缺 `--async-dns`，会直接起不来）。
 
-### 1.3 签名物料（**必须项目作者在 DevEco 做一次**）
+### 1.3 签名物料
+
+> 仓库里的 `build-profile.json5` 是**占位符**（签名口令/路径已抹掉）。
+> 本机真实物料存成 `build-profile.local.json5`（已 gitignore），构建前跑：
+> `sh scripts/apply-local-signing.sh`；提交前 `git checkout -- build-profile.json5` 还原。
+（**必须项目作者在 DevEco 做一次**）
 
 `.p7b` 调试 profile 里写死了 `bundleName` 与设备 UDID，**不能从别的工程复用**：
 换包名会报 `00303074`。做法：

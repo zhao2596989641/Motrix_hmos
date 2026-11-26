@@ -591,11 +591,20 @@ function installNativeRedirect(libsDir) {
 }
 
 // 顶层异常也要留下痕迹：设备上没有 DevEco 时，node-output.log 是唯一线索
+const stageHistory = []
+const bootStartedAt = Date.now()
+
 function writeStage(stage, detail) {
   currentStage = stage
+  const at = Date.now()
+  stageHistory.push({ stage, at, deltaMs: at - bootStartedAt })
   try {
     const stagePath = path.join(sandboxHome, 'boot-stage.json')
-    fs.writeFileSync(stagePath, JSON.stringify({ stage, detail, at: Date.now() }))
+    // 记录完整阶段时间线（stages[]）：冷启动优化时直接看每步耗时
+    fs.writeFileSync(
+      stagePath,
+      JSON.stringify({ stage, detail, at, startedAt: bootStartedAt, stages: stageHistory })
+    )
   } catch {}
 }
 writeStage('env_ready', { appRoot, dataDir, saveDir: env.MOTRIX_DEFAULT_SAVE_DIR })

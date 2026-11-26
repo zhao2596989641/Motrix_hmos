@@ -19,6 +19,20 @@ export function supportsHostFileActions(): boolean {
   return platform !== undefined && platform !== null
 }
 
+/** 是否运行在 HarmonyOS 原生壳里（而不是普通浏览器打开 web UI） */
+export function isHarmonyShell(): boolean {
+  return supportsHostFileActions()
+}
+
+/** 移植轮次（原生壳注入 __MOTRIX_PLATFORM__.portVersion），用于关于页徽章 */
+export function harmonyPortVersion(): string | null {
+  const platform = (
+    globalThis as { __MOTRIX_PLATFORM__?: { portVersion?: unknown } }
+  ).__MOTRIX_PLATFORM__
+  const version = platform?.portVersion
+  return typeof version === 'string' && version.length > 0 ? version : null
+}
+
 function dispatch(verb: string, params: Record<string, string>): void {
   if (typeof document === 'undefined') return
   const query = Object.entries(params)
