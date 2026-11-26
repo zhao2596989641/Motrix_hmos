@@ -19,6 +19,17 @@ export function supportsHostFileActions(): boolean {
   return platform !== undefined && platform !== null
 }
 
+/**
+ * 是否运行在 **HarmonyOS 原生壳** 里（而不是普通浏览器打开 web UI）。
+ *
+ * 用途：把「平台能力不可用」的入口收起来 —— 插件系统（--jitless 下无 WebAssembly）、
+ * 集成卡片（浏览器扩展/CLI/AppImage/媒体工具/系统协议）、应用内更新、完成后关机等，
+ * 在鸿蒙壳里点了也只会看到"不可用"，不如直接隐藏。
+ */
+export function isHarmonyShell(): boolean {
+  return supportsHostFileActions()
+}
+
 function dispatch(verb: string, params: Record<string, string>): void {
   if (typeof document === 'undefined') return
   const query = Object.entries(params)

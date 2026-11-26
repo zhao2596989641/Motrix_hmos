@@ -44,6 +44,8 @@
 
 ## 5. 前端 / 服务端产物
 
+- `resfile/app/bin/` 自 r39 起**不再打包**（端侧只执行 `entry/libs/arm64-v8a/*.bin`，少 11.5MB）；
+  需要旧行为时构建前设 `MOTRIX_RESFILE_BIN=1`。
 - `vendor/motrix/dist/server/index.mjs`、`vendor/motrix/dist/renderer-web/`：
   由 `vendor/motrix` 的 vite 配置构建（命令见 README）。`scripts/build-hap.sh` 会把它们拷进
   `entry/src/main/resources/resfile/app/`。

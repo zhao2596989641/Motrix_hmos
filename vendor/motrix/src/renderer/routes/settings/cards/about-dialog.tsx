@@ -14,6 +14,7 @@ import {
   ScrollBar,
 } from '@renderer/components/ui/scroll-area'
 import { usePortableMode } from '@renderer/hooks/use-portable-mode'
+import { isHarmonyShell } from '@renderer/lib/platform-actions'
 import { EXTERNAL_URLS } from '@shared/external-urls'
 import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -164,14 +165,19 @@ export function AboutDialog({
             className="min-h-0 flex-1 overscroll-contain"
           >
             <ScrollAreaContent style={{ minWidth: '100%' }}>
-              <AppUpdateSection update={update} />
+              {/* HarmonyOS 版不提供应用内更新（发布走手动装机/应用市场），入口隐藏 */}
+              {!isHarmonyShell() && <AppUpdateSection update={update} />}
             </ScrollAreaContent>
           </ScrollAreaViewport>
           <ScrollBar />
         </ScrollArea>
 
         <DialogFooter className="shrink-0 flex-row items-center justify-between gap-4 border-t border-border/70 bg-background/85 px-6 py-3.5 backdrop-blur-xl sm:justify-between">
-          {update.showControls ? <AutomaticUpdateSetting /> : <span />}
+          {!isHarmonyShell() && update.showControls ? (
+            <AutomaticUpdateSetting />
+          ) : (
+            <span />
+          )}
           <Button onClick={onClose} size="sm" className="min-w-20">
             {t('common.close')}
           </Button>

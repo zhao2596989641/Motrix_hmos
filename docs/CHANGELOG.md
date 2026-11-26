@@ -3,6 +3,27 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r39 / r40 · 入口收敛 + 体积与启动优化
+
+**入口收敛**（把「平台能力不可用」的入口收起来，而不是让用户点进去看到"不可用"）：
+
+- 侧边栏隐藏「插件」入口（`--jitless` 下无 WebAssembly，QuickJS 不可用）
+- 设置页隐藏「集成」卡片（浏览器扩展 / CLI / AppImage / 媒体工具 / 系统协议端侧都不可用；
+  协议关联由原生 skills + 自定义 UTD 实现，不需要用户设置）
+- 下载页统计栏隐藏「完成后关机」菜单（Electron 主进程专属）
+- 关于页隐藏应用内更新（含自动更新开关）
+- 判定方式：`isHarmonyShell()`（原生壳会注入 `window.__MOTRIX_PLATFORM__`）
+- 重新构建了 `vendor/motrix/dist/renderer-web`（只有渲染层改动，服务端未动）
+
+**体积与启动**：
+
+- **HAP 203.5MB → 192.0MB（-11.5MB）**：不再把 `aria2c` / `motrix-finalize-fs` 塞进
+  `resfile/app/bin` 重复存放；端侧执行副本仍在 `entry/libs/arm64-v8a/*.bin`（libs 优先解析）
+- 启动诊断探针（4~5 次 `spawnSync`）从启动链路改为 ready 之后延迟 8 秒执行，少占用首屏时间
+- `versionCode` 改为「1000000 + 轮次号」（r39 ⇒ 1000039）
+- 修复重复构建时 `.profile section already exists` 的签名失败（先 strip 旧签名段再签）
+- 删除废弃 HNP 方案目录与脚本
+
 ## r38 · 托盘面板：固定排序 / 顶部标题行移除
 
 - 任务列表改为按 `createdAt` 倒序固定排序（新任务在上，暂停/继续/完成都不换位）

@@ -21,6 +21,7 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from '@renderer/components/ui/sidebar'
+import { isHarmonyShell } from '@renderer/lib/platform-actions'
 import { useLegacyImportNavigation } from '@renderer/features/legacy-import/use-legacy-import-navigation'
 import { LEGACY_MIGRATION_ROUTE } from '@shared/lib/legacy-import-navigation'
 import { useTranslation } from 'react-i18next'
@@ -48,16 +49,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation()
   const direction = useDirection()
   const { visible } = useLegacyImportNavigation()
+  // HarmonyOS 壳里插件系统不可用（--jitless ⇒ 无 WebAssembly，QuickJS 跑不起来）：
+  // 入口直接隐藏，避免用户点进去看到一堆"不可用"。
+  const navItems = isHarmonyShell()
+    ? NAV_ITEMS.filter((item) => item.to !== '/plugins')
+    : NAV_ITEMS
   const items = visible
     ? [
-        ...NAV_ITEMS,
+        ...navItems,
         {
           to: LEGACY_MIGRATION_ROUTE,
           icon: MigrationIcon,
           labelKey: 'legacyImport.navigation',
         },
       ]
-    : NAV_ITEMS
+    : navItems
 
   return (
     <Sidebar
