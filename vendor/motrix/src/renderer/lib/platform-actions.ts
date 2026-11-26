@@ -30,6 +30,18 @@ export function isHarmonyShell(): boolean {
   return supportsHostFileActions()
 }
 
+/**
+ * 移植轮次（例如 "r41"）：原生壳注入 `__MOTRIX_PLATFORM__.portVersion`。
+ * 用于"关于"页显示 HarmonyOS Port 徽章 —— 用户一眼能看出装的是哪一版移植。
+ */
+export function harmonyPortVersion(): string | null {
+  const platform = (
+    globalThis as { __MOTRIX_PLATFORM__?: { portVersion?: unknown } }
+  ).__MOTRIX_PLATFORM__
+  const version = platform?.portVersion
+  return typeof version === 'string' && version.length > 0 ? version : null
+}
+
 function dispatch(verb: string, params: Record<string, string>): void {
   if (typeof document === 'undefined') return
   const query = Object.entries(params)
