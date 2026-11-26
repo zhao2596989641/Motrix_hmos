@@ -22,7 +22,8 @@ import { webview } from '@kit.ArkWeb';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
-import { MotrixHost, HostReady } from '../runtime/MotrixHost';
+import { MotrixHost, HostReady, StartOutcome } from '../runtime/MotrixHost';
+import { acquireHost } from '../runtime/HostBoot';
 import { PlatformActions } from '../runtime/PlatformActions';
 import { shouldBlockDrag } from '../runtime/WindowState';
 import { NotificationPoller, SystemNotifier } from '../runtime/SystemNotifier';
@@ -44,6 +45,10 @@ enum Phase {
 struct Index {
   private controller: webview.WebviewController = new webview.WebviewController();
   private host: MotrixHost | null = null;
+  /** EntryAbility 提前启动宿主时给的 Promise（见 runtime/HostBoot.ets） */
+  private hostStart: Promise<StartOutcome> | null = null;
+  /** 是否已经让 Web 去加载真实 URL（否则 onPageEnd 属于预热页 about:blank） */
+  private appLoadRequested: boolean = false;
   private retryCount: number = 0;
   private static readonly AUTO_RETRY_MAX: number = 6;
   // 诊断日志落盘目录（ArkTS 的 hilog 在本机 hilog 缓冲里经常捞不到，落文件最可靠）
@@ -107,7 +112,10 @@ struct Index {
     this.appendDiag(
       `===== Index.aboutToAppear ===== build=r31 platform language=${this.systemLanguage} colorMode=${this.systemColorMode} code=${this.systemColorModeCode}`
     );
-    this.host = new MotrixHost(context);
+    // r48：宿主可能在 EntryAbility.onWindowStageCreate 里就已经被提前启动，这里只是取同一个实例/Promise。
+    const boot = acquireHost(context);
+    this.host = boot.host;
+    this.hostStart = boot.start;
     this.boot();
   }
 
@@ -163,7 +171,7 @@ struct Index {
   state.language = ${JSON.stringify(language)};
   state.colorMode = ${JSON.stringify(colorMode)};
   // 移植轮次：关于页用它显示 "HarmonyOS Port rNN" 徽章
-  state.portVersion = 'r47';
+  state.portVersion = 'r48';
   // 端侧 Node 是 --jitless 起的（无 WebAssembly）⇒ 上游 QuickJS 插件沙箱不可用。
   // UI 自己跑在 ArkWeb 里，判断不了端侧 Node 的能力，所以由原生壳给结论：
   // 渲染层据此在插件页显示横幅，并且 server 侧已把插件链降级为 fail-open（不会拖垮下载）。
@@ -841,7 +849,8 @@ struct Index {
     try {
       this.phase = Phase.BOOTING;
       this.statusText = '正在启动 Motrix 内核…';
-      const startOutcome = await host.start();
+      // 可能已经在 onWindowStageCreate 里提前 start 了；这里只等结果（重复调用是幂等的）。
+      const startOutcome = await (this.hostStart ?? host.start());
       if (!startOutcome.ok) {
         throw new Error(`Node 启动被拒绝：${startOutcome.note}`);
       }
@@ -873,6 +882,9 @@ struct Index {
       const bootQuery = this.bootLocaleQuery();
       this.appendDiag(`LOADING url=${origin}/${bootQuery}`);
       this.launchUrl = `${origin}/${bootQuery}`;
+      // Web 组件从第一帧就以 about:blank 预热（见 build()），这里显式导航到真实 UI。
+      this.appLoadRequested = true;
+      this.controller.loadUrl(this.launchUrl);
       this.armLoadWatchdog();
     } catch (error) {
       const err = error as Error;
@@ -918,8 +930,9 @@ struct Index {
       this.retryCount += 1;
       this.phase = Phase.BOOTING;
       this.statusText = `正在重试（${this.retryCount}/${Index.AUTO_RETRY_MAX}）…`;
-      // 关键：清掉 launchUrl 让 Web 组件卸载；下次 boot() 重新设置时会重建并真正重新导航
+      // 清掉 launchUrl 让启动页遮住、并把 onPageEnd 重新归零；下次 boot() 会重新 loadUrl
       this.launchUrl = '';
+      this.appLoadRequested = false;
       this.appendDiag(`retry ${this.retryCount}/${Index.AUTO_RETRY_MAX}: ${message}`);
       setTimeout(() => {
         this.boot();
@@ -941,9 +954,11 @@ struct Index {
     // 沉浸式（Clash 式）：**不画标题栏**，Web 内容铺满整窗；
     // 系统三键悬浮在右上角，拖拽热区由注入的 Web 侧"隐形拖条"负责。
     Stack() {
-      // Web 组件始终在，但启动页会盖住它
-      if (this.launchUrl.length > 0) {
-        Web({ src: this.launchUrl, controller: this.controller })
+      // Web 组件**从第一帧就存在**：先以 about:blank 把 ArkWeb 内核预热起来（r48 冷启动，
+      // 与 Node 启动并行）；宿主 ready 后由 boot() 显式 loadUrl 到真实 UI。
+      // 启动页（下方 phase !== READY 的遮罩）会盖住它。
+      if (true) {
+        Web({ src: 'about:blank', controller: this.controller })
           .javaScriptAccess(true)
           .domStorageAccess(true)
           .fileAccess(false)
@@ -1000,8 +1015,12 @@ struct Index {
             }
           })
           .onPageEnd(() => {
-            this.appendDiag('onPageEnd');
+            this.appendDiag(`onPageEnd appLoadRequested=${this.appLoadRequested}`);
             if (this.phase === Phase.ERROR) {
+              return;
+            }
+            // about:blank 预热页的结束不算"应用就绪"：真实 URL 还没请求（r48）。
+            if (!this.appLoadRequested || this.launchUrl.length === 0) {
               return;
             }
             this.phase = Phase.READY;
@@ -1081,6 +1100,7 @@ struct Index {
             Button('重试').onClick(() => {
               this.retryCount = 0;
               this.launchUrl = '';
+              this.appLoadRequested = false;
               this.boot();
             })
           } else {

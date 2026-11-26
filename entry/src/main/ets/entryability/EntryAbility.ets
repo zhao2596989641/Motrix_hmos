@@ -30,6 +30,7 @@ import {
   DEEPLINK_CMD_ADD_TORRENT,
 } from '../runtime/TrayBridge';
 import { autoStartupManager } from '@kit.AbilityKit';
+import { preStartHost } from '../runtime/HostBoot';
 
 const DOMAIN = 0x0000;
 const TAG = 'MOTRIX-ABILITY';
@@ -280,6 +281,14 @@ export default class EntryAbility extends UIAbility {
     this.windowStageRef = windowStage;
     // 关闭按钮拦截（收进托盘）：窗口一被创建就能挂监听，不用等 loadContent
     this.setupCloseToTray(windowStage);
+    // r48 冷启动：Node 启动（~2.5s）与页面/ArkWeb 初始化**并行**执行，
+    // 不要让 UI 先就绪再开始等 Node。页面里只 await 同一个 Promise（见 runtime/HostBoot.ets）。
+    try {
+      preStartHost(this.context);
+    } catch (error) {
+      const err = error as Error;
+      hilog.warn(DOMAIN, TAG, 'preStartHost threw: %{public}s', err.message);
+    }
     windowStage.loadContent('pages/Index', (error: BusinessError) => {
       if (error.code) {
         hilog.error(DOMAIN, TAG, 'loadContent failed: %{public}s', JSON.stringify(error));

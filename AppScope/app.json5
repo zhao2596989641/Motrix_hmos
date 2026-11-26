@@ -5,10 +5,11 @@
     // 版本号方案（项目作者 2026-11-26 定）：
     //   versionCode = 上游 major(1) + minor(1) + patch(2) + 占位(2) + 自身轮次(3, 补零)
     //                 2   4   05   00   047   → 240500047
-    //   versionName = 上游版本 + "." + 轮次 → 2.4.5.47
+    //   versionName = 上游版本 + "." + 轮次 → 2.4.5.<轮次>
     //   轮次到三位数后占位位让出一位：r101 → 2405 + 0 + 101 = 24050101
-    "versionCode": 240500047,
-    "versionName": "2.4.5.47",
+    //   当前：r48 → 240500048 / 2.4.5.48
+    "versionCode": 240500048,
+    "versionName": "2.4.5.48",
     "icon": "$media:layered_image",
     "label": "$string:app_name"
   }

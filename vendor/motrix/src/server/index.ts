@@ -1688,8 +1688,19 @@ async function main() {
     await dataDirLock?.release()
   }
 
+  // ── 启动耗时打点（HarmonyOS 移植 r48）───────────────────────────────────
+  // 端侧冷启动的瓶颈在"import server → HTTP listen"这一段；这里把 startServer()
+  // 内部的关键 await 边界打上 elapsedMs，真机 node-output.log 一看就知道哪步最贵。
+  // 只加日志，不改任何行为/次序。
+  const bootT0 = Date.now()
+  const bootMark = (label: string, extra?: Record<string, unknown>): void => {
+    log.info({ elapsedMs: Date.now() - bootT0, ...(extra ?? {}) }, `boot: ${label}`)
+  }
+
   const startServer = async (): Promise<void> => {
+    bootMark('startServer-entry')
     await activeGeoipManager.start()
+    bootMark('geoip-started')
     if (!shellAsyncWork.isAccepting()) {
       await activeGeoipManager.stop()
       return
@@ -1709,6 +1720,7 @@ async function main() {
       await pluginHost.shutdown()
       return
     }
+    bootMark('plugin-activation-done')
 
     speedLimitController.start()
 
@@ -1737,6 +1749,7 @@ async function main() {
       log.warn({ err }, 'initial proxy apply failed')
     }
     if (!shellAsyncWork.isAccepting()) return
+    bootMark('proxy-applied')
     if (settingsManager.getApp().checkForUpdatesOnLaunch) {
       runShellAsyncWork('automatic update check', () => updateService.check())
     }
@@ -1900,9 +1913,11 @@ async function main() {
         durableFinalizeRuntime.recoverAll()
       )
 
+      bootMark('engine-start-before')
       await pluginStartup.startEngine(() =>
         startServerEngine(supervisor, platform.aria2BinaryPath)
       )
+      bootMark('engine-start-done', { engineState: supervisor.getStatus().state })
       if (!shellAsyncWork.isAccepting()) return
 
       await appliedDownloadProxyPolicy.runWithSnapshot(
@@ -1914,6 +1929,7 @@ async function main() {
         }
       )
       if (!shellAsyncWork.isAccepting()) return
+      bootMark('session-restored')
 
       // Plan B: re-prime MagnetTracker's in-memory cache from the
       // restored db state so polling skips magnet metadata GIDs and
@@ -1962,6 +1978,7 @@ async function main() {
       )
       if (!shellAsyncWork.isAccepting()) return
       log.info({ report }, 'startup_recovery_done')
+      bootMark('startup-recovery-done', { scanned: report.totalScanned })
       // Publish the authoritative post-recovery snapshot (mirrors the
       // desktop shell). Recovery rewrites stopped-state rows that polling
       // never observes, and the poll tick is delta-gated — without this
@@ -2092,6 +2109,7 @@ async function main() {
       ? `unix:${nas.socketPath}`
       : `http://localhost:${port}`
     log.info({ port, url: serverUrl }, `server listening at ${serverUrl}`)
+    bootMark('http-listening', { port, engineState: supervisor.getStatus().state })
 
     let bridgeSetupStage:
       | 'process-ownership'

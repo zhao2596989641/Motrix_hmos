@@ -3,6 +3,30 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r48 · 冷启动优化（并行启动 + 不等引擎 + 启动耗时细分）（2026-11-26）
+
+> 目标：缩短"点图标 → 仪表板可用"。r47 基线：宿主 ready **2500ms**，启动到首个可用画面约 4.7s。
+
+- **宿主不再等引擎就绪**（最大的结构性改动）：
+  上游 `/healthz` 只有 `accepting && engine Ready` 才回 200；旧实现为了这个 200 把**引擎启动**
+  也算进宿主关键路径。现在只等"HTTP 入口应答"（200 或 **503** 都算端口已通），
+  UI 先加载、引擎状态由事件流更新为"启动中 → 就绪"（r45 起引擎状态已是单例 store，本来就支持）。
+  新增启动阶段 `http_listening`（记录 healthz 状态与等待毫秒）。
+- **spawn 诊断挪出关键路径**：`spawn-probe.json` 那 5 个 `spawnSync`（约 200ms）以前挡在
+  `import server` 之前；现在推迟到 ready 之后 20s 再跑（纯诊断，不参与任何判据）。
+  → r47 的 `preflight 247ms` 应基本消失。
+- **healthz 轮询 300ms → 60ms**：端口一通就继续，少等一个轮询周期。
+- **宿主提前启动 + ArkWeb 预热（并行）**：
+  · `EntryAbility.onWindowStageCreate` 里（loadContent 之前）就 `preStartHost()`，
+    Node 启动与窗口/页面初始化并行；`Index` 只 await 同一个 Promise（新增 `runtime/HostBoot.ets`）。
+  · Web 组件**从第一帧就以 `about:blank` 存在**，ArkWeb 内核预热与 Node 启动并行；
+    宿主 ready 后再 `loadUrl` 到真实 UI（`onPageEnd` 已加"预热页不算就绪"的保护）。
+- **启动耗时细分**：`server/index.ts` 在 `startServer()` 内加 `boot:` 日志（`startServer-entry` →
+  `geoip-started` → `plugin-activation-done` → `proxy-applied` → `engine-start-before/done` →
+  `session-restored` → `startup-recovery-done` → `http-listening`，每行带 `elapsedMs`）。
+  下一轮按这份细分削服务端启动（listen 之前的 1000ms+ 是大头）。
+- 版本：`2.4.5.48` / `versionCode 240500048`；徽章 `HarmonyOS Port r48`（见 Index.ets）。
+
 ## r47 · 版本号方案 + 插件安全降级 + W^X 探针 + 出包自检（2026-11-26）
 
 > 真机验证：待测。产物 `2.4.5.47`（versionCode `240500047`）。

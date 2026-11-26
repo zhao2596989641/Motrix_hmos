@@ -476,20 +476,38 @@ function buildShimFetch() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-async function waitHealthy(deadlineMs) {
+/**
+ * 等 loopback 上的 HTTP 入口应答 —— **不要求引擎已就绪**（r48 冷启动优化）。
+ *
+ * 上游 `/healthz` 只有在 `accepting && engine.state === Ready` 时才回 200；而引擎启动是
+ * startServer() 主流程的一环、在 app.listen() 之前。旧实现为了一个 200 把引擎启动也
+ * 算进宿主关键路径。实际上只要 HTTP 通了（200 或 503），Web UI 就能加载、查询、并通过
+ * 事件流拿到引擎状态变化 —— 界面里显示「引擎启动中 → 就绪」本来就是既有行为
+ * （r45 起引擎状态已是单例 store，事件驱动）。所以这里只等"端口应答"。
+ *
+ * 返回 { status, waitedMs }：status=200 表示引擎也已就绪，503 表示 HTTP 通了但引擎还在起。
+ */
+async function waitListening(deadlineMs) {
   const started = Date.now()
   let lastErr = ''
+  let lastStatus = 0
   while (Date.now() - started < deadlineMs) {
     try {
       const res = await request('GET', '/healthz')
-      if (res.status === 200) return true
+      lastStatus = res.status
+      // 两个都算"HTTP 入口已在应答"：200 全就绪；503 = degraded（引擎没 Ready）。
+      if (res.status === 200 || res.status === 503) {
+        return { status: res.status, waitedMs: Date.now() - started }
+      }
       lastErr = `status ${res.status}`
     } catch (error) {
       lastErr = error.message
     }
-    await sleep(300)
+    await sleep(60)
   }
-  throw new Error(`server 未在 ${deadlineMs}ms 内就绪（最后一次：${lastErr}）`)
+  throw new Error(
+    `server HTTP 未在 ${deadlineMs}ms 内应答（最后一次：${lastErr || 'status ' + lastStatus}）`
+  )
 }
 
 // ── 原生库重定向的实现（调用点在文件上面的 env 段） ───────────────────────────
@@ -677,7 +695,16 @@ function runSpawnDiagnostics() {
     )
   } catch {}
 }
-runSpawnDiagnostics()
+// 【r48 冷启动】启动期自检（spawn-probe.json）纯诊断、不参与任何判据，
+// 而且里面 5 个 spawnSync 每个 ~60ms —— 以前它挡在 import server 之前，白吃 200ms+。
+// 现在推迟到 ready 之后（此时 UI 已在加载），只在真机排查时才需要这份数据。
+setTimeout(() => {
+  try {
+    runSpawnDiagnostics()
+  } catch (error) {
+    log('spawn diagnostics failed:', error && error.message)
+  }
+}, 20_000)
 
 // ── 启动前清理自家孤儿子进程（aria2c / motrix-finalize-fs）───────────────────
 //
@@ -884,11 +911,17 @@ writeStage('shims_ready', {
 // ── 启动 server ──────────────────────────────────────────────────────────────
 log('import server…')
 await import(path.join(appRoot, 'dist', 'server', 'index.mjs'))
-log('server module imported; waiting for /healthz…')
+log('server module imported; waiting for HTTP ingress…')
 writeStage('server_imported', {})
-await waitHealthy(120_000)
-log('server is healthy')
-writeStage('server_healthy', {})
+const listening = await waitListening(120_000)
+log(
+  `server listening (healthz=${listening.status}, waited ${listening.waitedMs}ms)` +
+    (listening.status === 503 ? '（引擎尚未 Ready，UI 会先显示"启动中"）' : '')
+)
+writeStage('http_listening', {
+  healthz: listening.status,
+  waitedMs: listening.waitedMs,
+})
 
 // ── 本地登录，拿会话 cookie ──────────────────────────────────────────────────
 let operatorToken = env.MOTRIX_OPERATOR_TOKEN || ''

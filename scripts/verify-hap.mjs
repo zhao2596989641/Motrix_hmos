@@ -247,8 +247,20 @@ if (moduleJson && moduleJson.app) {
   warn('包里没有可解析的 module.json')
 }
 
-// 徽章轮次（编译进 ets/modules.abc，只能做存在性抽查）
-const appScopeBadge = 'r47'
+// 徽章轮次（编译进 ets/modules.abc，只能做存在性抽查）——从 Index.ets 注入脚本里读，别写死
+function readPortVersion() {
+  try {
+    const text = fs.readFileSync(
+      path.join(ROOT, 'entry/src/main/ets/pages/Index.ets'),
+      'utf8'
+    )
+    const m = text.match(/state\.portVersion\s*=\s*'([^']+)'/)
+    return m ? m[1] : null
+  } catch {
+    return null
+  }
+}
+const appScopeBadge = readPortVersion() || 'r?'
 const moduleAbc = entries.find((e) => e.name.endsWith('modules.abc'))
 if (moduleAbc) {
   const buf = readEntry(hapPath, moduleAbc.name)
