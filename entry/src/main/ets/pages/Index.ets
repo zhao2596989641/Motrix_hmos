@@ -108,14 +108,16 @@ struct Index {
     this.actions.setDragHandler(() => {
       this.beginWindowDrag();
     });
+    // r48：宿主可能在 EntryAbility.onWindowStageCreate 里就已经被提前启动，这里只是取同一个实例/Promise。
+    // 注意顺序（r49）：必须先 acquireHost —— 它的同步前缀会跑完 W^X 探针，之后注入脚本里的
+    // pluginRuntime 才能拿到"本进程能不能 JIT/WASM"的真实结论。
+    const boot = acquireHost(context);
+    this.host = boot.host;
+    this.hostStart = boot.start;
     this.platformScript = this.buildPlatformScript();
     this.appendDiag(
       `===== Index.aboutToAppear ===== build=r31 platform language=${this.systemLanguage} colorMode=${this.systemColorMode} code=${this.systemColorModeCode}`
     );
-    // r48：宿主可能在 EntryAbility.onWindowStageCreate 里就已经被提前启动，这里只是取同一个实例/Promise。
-    const boot = acquireHost(context);
-    this.host = boot.host;
-    this.hostStart = boot.start;
     this.boot();
   }
 
@@ -166,17 +168,21 @@ struct Index {
       language = 'en-US';
     }
     const colorMode = this.resolveColorMode();
+    // 端侧 Node 是否拿到可执行内存（JIT/WASM）——由原生壳探针决定，渲染层据此显示插件横幅
+    const pluginRuntime: string =
+      (this.host !== null && this.host.isJitAvailable()) ? 'ready' : 'unavailable';
     return `(function(){
   var state = window.__MOTRIX_PLATFORM__ = window.__MOTRIX_PLATFORM__ || {};
   state.language = ${JSON.stringify(language)};
   state.colorMode = ${JSON.stringify(colorMode)};
   // 移植轮次：关于页用它显示 "HarmonyOS Port rNN" 徽章
-  state.portVersion = 'r48';
-  // 端侧 Node 是 --jitless 起的（无 WebAssembly）⇒ 上游 QuickJS 插件沙箱不可用。
-  // UI 自己跑在 ArkWeb 里，判断不了端侧 Node 的能力，所以由原生壳给结论：
-  // 渲染层据此在插件页显示横幅，并且 server 侧已把插件链降级为 fail-open（不会拖垮下载）。
-  // 以后若放开 JIT 让插件可用，这里改成 'ready' 即可。
-  state.pluginRuntime = 'unavailable';
+  state.portVersion = 'r49';
+  // 端侧插件运行时是否可用，取决于端侧 Node 能不能拿到**可执行内存**（JIT/WASM）：
+  // 有 ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY 的 ACL ⇒ Node 不带 --jitless，
+  // 上游 QuickJS 插件沙箱原样可用（'ready'）；否则回退 --jitless（'unavailable'，
+  // 渲染层在插件页显示横幅，server 侧插件链已降级为 fail-open）。
+  // UI 跑在 ArkWeb 里（Chromium 有 WebAssembly），判断不了端侧 Node 的能力，所以由原生壳给结论。
+  state.pluginRuntime = ${JSON.stringify(pluginRuntime)};
   var pool = [];
   var originalMatchMedia = window.matchMedia ? window.matchMedia.bind(window) : null;
   function isColorScheme(query) { return String(query).indexOf('prefers-color-scheme') >= 0; }

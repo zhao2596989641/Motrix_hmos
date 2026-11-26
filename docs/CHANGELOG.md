@@ -3,6 +3,28 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r49 · 引擎启动快连 + JIT 受限权限就绪（探针驱动、可降级）（2026-11-26）
+
+> 开发者 AI 确认：**匿名内存可执行是内核级管控**（`EINVAL` 就是官方预期），合法途径只有受限 ACL
+> `ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY`，官方可申请场景正是「应用内置 JavaScript
+> 虚拟机（V8 等）」——本项目完全匹配；PC/2in1 支持、个人实名开发者可申请、约 3 个工作日。
+> 拿到 ACL 后本进程即可 JIT/WASM，于是本版把 JIT 做成**探针驱动 + 可降级**，权限到位即自动生效。
+
+- **引擎启动快 ~450ms**：`aria2-rpc-client.connect()` 的重试退避从固定 `500ms` 改成
+  前快后慢 `20/40/80/160/250ms` 再 500ms 封顶。r48 真机 `boot:` 日志显示引擎启动 **663ms**，
+  其中 `engine start stage slow: stage=rpc ms=515` —— 就是死等 500ms 造成的。
+- **JIT 探针驱动（自动降级）**：原生新增 `probeExecMemory()`（NAPI）；`MotrixHost.start()` 先探针
+  再决定 argv —— 可执行内存可用 ⇒ 不带 `--jitless`（V8 JIT + `WebAssembly` 可用）；
+  不可用（含用户开启**坚盾守护模式**）⇒ 回退 `--jitless`，功能不受影响、不闪退。
+- **插件运行时状态动态化**：注入渲染层的 `pluginRuntime` 由 `isJitAvailable()` 决定，
+  JIT 可用时插件页不再显示"端侧不可用"横幅、上游 QuickJS 沙箱原样工作；
+  不可用时横幅 + server 侧 fail-open 兜底（r47）保持不变。
+- **受限权限构建开关**：`module.json5` 增加带标记的注释块 + `scripts/patch-module-permissions.mjs`
+  （enable/disable/status，round-trip 精确）。拿到 ACL 后用
+  `MOTRIX_ENABLE_JIT_PERMISSION=1 sh scripts/build-hap.sh` 构建：临时解注 → hvigor → 自动还原。
+  **默认不声明**（没 ACL 声明会让安装失败）。
+- 版本 `2.4.5.49` / `240500049`；徽章 `HarmonyOS Port r49`。
+
 ## r48 · 冷启动优化（并行启动 + 不等引擎 + 启动耗时细分）（2026-11-26）
 
 > 目标：缩短"点图标 → 仪表板可用"。r47 基线：宿主 ready **2500ms**，启动到首个可用画面约 4.7s。

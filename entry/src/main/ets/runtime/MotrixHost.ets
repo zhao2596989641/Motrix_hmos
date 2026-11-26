@@ -56,6 +56,23 @@ export interface StartOutcome {
   note: string;
 }
 
+/**
+ * 原生探针结果：本进程能不能申请**可执行匿名内存**（W^X）。
+ *
+ * 为什么问它（r49）：HarmonyOS 内核级管控禁止匿名内存可执行（r47 实测 errno=EINVAL），
+ * 官方给的合法途径是受限 ACL 权限 `ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY`
+ * （场景正是"应用内置 V8 等语言虚拟机"）。拿到权限后本进程可以 JIT，于是：
+ *   · Node 不必再带 `--jitless`（V8 JIT + WebAssembly 可用，性能更好）；
+ *   · 上游 QuickJS 插件沙箱（wasm）原样可用。
+ * 没拿到（含用户开"坚盾守护模式"）就回退 `--jitless`，功能不受影响。
+ */
+export interface ExecMemoryProbe {
+  execmemAllowed: boolean;
+  mprotectRxErrno: number;
+  mmapRwxErrno: number;
+  pageSize: number;
+}
+
 export class MotrixHost {
   private readonly context: common.UIAbilityContext;
   private readonly sandboxHome: string;
@@ -65,11 +82,18 @@ export class MotrixHost {
   /** 本次启动的起始时刻：用来识别上一次进程遗留的 host-ready.json */
   private bootEpochMs: number = 0;
   private started: boolean = false;
+  /** 本进程是否拿到可执行内存（JIT/WASM 可用）。只有 ACL 权限生效时为 true */
+  private jitAvailable: boolean = false;
 
   constructor(context: common.UIAbilityContext) {
     this.context = context;
     this.sandboxHome = context.filesDir;
     this.dataDir = `${this.sandboxHome}/motrix`;
+  }
+
+  /** 本进程能否 JIT/WASM（ACL 权限生效时为 true；注入给渲染层的 pluginRuntime 用） */
+  isJitAvailable(): boolean {
+    return this.jitAvailable;
   }
 
   /** 数据目录（可写：db / settings / plugins / 日志） */
@@ -108,6 +132,20 @@ export class MotrixHost {
       return { ok: true, note: 'Node 已在运行' };
     }
     this.ensureDirs();
+    // r49：先问内核给不给可执行匿名内存，再决定 Node 用不用 --jitless。
+    // 同步 NAPI，必须在**任何 await 之前**做完：EntryAbility 提前 preStart 时，
+    // Index.aboutToAppear 要在构建注入脚本时就能拿到结论（决定 pluginRuntime）。
+    this.jitAvailable = false;
+    try {
+      const probe = motrixhost.probeExecMemory() as ExecMemoryProbe;
+      this.jitAvailable = probe !== undefined && probe !== null && probe.execmemAllowed === true;
+      hilog.info(DOMAIN, TAG,
+        'exec memory probe: jit=%{public}s (mprotectRxErrno=%{public}d mmapRwxErrno=%{public}d)',
+        String(this.jitAvailable), probe.mprotectRxErrno, probe.mmapRwxErrno);
+    } catch (error) {
+      const err = error as BusinessError;
+      hilog.warn(DOMAIN, TAG, 'exec memory probe failed（按不可用处理）: %{public}s', err.message);
+    }
     this.bootEpochMs = Date.now();
     // ★ 上一次进程遗留的 host-ready.json 必须先处理掉：
     //   它的端口/ cookie 都是旧的（cookie 早就失效），而且 server 还没起来。
@@ -125,14 +163,21 @@ export class MotrixHost {
     this.port = await this.resolvePort();
 
     const env = this.buildEnv(this.port);
-    const argv: string[] = [
-      // 不申请可写可执行内存；代价是 WebAssembly === undefined
-      '--jitless',
-      // Node 22 起 node:sqlite 需要它（我们有 libnode 自带 SQLite）
-      '--experimental-sqlite',
-      // 排到脚本路径**之前**：Node 把第一个非选项参数当脚本
-      `${this.appRoot}/main.mjs`,
-    ];
+    const argv: string[] = this.jitAvailable
+      ? [
+        // 拿到可执行内存权限：走 JIT（V8 优化编译 + WebAssembly 可用）。
+        // Node 22 起 node:sqlite 需要它（我们有 libnode 自带 SQLite）
+        '--experimental-sqlite',
+        // 排到脚本路径**之前**：Node 把第一个非选项参数当脚本
+        `${this.appRoot}/main.mjs`,
+      ]
+      : [
+        // 没有权限（或用户开了"坚盾守护模式"）：不申请可写可执行内存，
+        // 代价是 WebAssembly === undefined（插件沙箱不可用，见插件页横幅）
+        '--jitless',
+        '--experimental-sqlite',
+        `${this.appRoot}/main.mjs`,
+      ];
     hilog.info(DOMAIN, TAG, 'startHost port=%{public}d appRoot=%{public}s', this.port, this.appRoot);
     const result = motrixhost.startHost(argv, env);
     hilog.info(DOMAIN, TAG, 'startHost returned started=%{public}s note=%{public}s',

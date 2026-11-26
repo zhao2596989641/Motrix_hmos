@@ -66,7 +66,17 @@
         "name": "ohos.permission.SET_ABILITY_INSTANCE_INFO",
         "reason": "$string:perm_quickbar_reason",
         "usedScene": { "abilities": ["EntryAbility"], "when": "always" }
-      }
+      },
+      // 受限 ACL：允许应用申请可写可执行匿名内存（V8 JIT / WebAssembly）。
+      // 官方可申请场景正是「应用内置 JavaScript 虚拟机（V8 等）」，本项目的 libnode 属于此列；
+      // 申请方式：开发者中心 Profile 里申请受限权限（调试期可用 DevEco 自动签名代办，约 3 个工作日）。
+      // ★ 必须拿到 ACL 才启用：没 ACL 却在清单里声明会导致**安装失败**。
+      //   拿到后用 MOTRIX_ENABLE_JIT_PERMISSION=1 构建（build-hap 会临时解注下面三行）。
+      // >>> MOTRIX_JIT_PERMISSION_BEGIN
+      // { "name": "ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY",
+      // "reason": "$string:perm_jit_reason",
+      // "usedScene": { "abilities": ["EntryAbility"], "when": "always" } }
+      // <<< MOTRIX_JIT_PERMISSION_END
     ],
     "abilities": [
       {

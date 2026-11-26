@@ -18,10 +18,10 @@ r47 起版本号改为 `2.4.5.47` / `240500047`，并修掉了"装插件会让�
 | 维度 | 状态 |
 |---|---|
 | 装机形态 | HAP `com.lyldeer.motrix`，2in1 / aarch64 / API 26（target+compatible 均 `26.0.0`），debug 签名（**只自己用**，见待决策 4） |
-| 版本号 | `versionCode 240500048` / `versionName 2.4.5.48`（方案：上游 2405 + 占位 00 + 轮次 048） |
+| 版本号 | `versionCode 240500049` / `versionName 2.4.5.49`（方案：上游 2405 + 占位 00 + 轮次 049） |
 | 端侧运行时 | 进程内 `libnode.so.137`（Node 24.2.0，`--jitless`）+ Motrix server（fastify）+ ArkWeb 同源加载官方 Web UI |
 | HAP 体积 | **191,994,335 B**（r46 起 `resfile/app/bin` 不再重复打包，省 11.0 MiB） |
-| 冷启动 | host ready ≈ **2.68 s**（r44 测得；r46 起 `boot-stage.json` 有逐步细分，见待办 1） |
+| 冷启动 | r47 **2500ms** → r48 **2026ms**（preflight 247→5ms；服务端细分：engine 663ms 是大头）；r49 预计再降 ~450ms |
 | 但测通过的 | r38 / r44（回档基线）；r43 因"快速重试"事故被回档；r45（引擎状态单例 store）由 r46 间接验证 |
 | 已知 P0 遗留 | 代理/TUN 未排除 loopback 时前端会报"无法连接服务器"（环境问题，需决策怎么兜，见第四节） |
 
@@ -58,7 +58,8 @@ r47 起版本号改为 `2.4.5.47` / `240500047`，并修掉了"装插件会让�
 | r45 | 引擎状态**单例 store**（修"切页回仪表板卡在引擎启动中"）+ 只读网络诊断（`query burst`/`slow query`） | ✅ 由 r46 间接验证 |
 | r46 | `resfile/app/bin` 不随包（**-11.0 MiB**）、启动阶段细分、Dock 进度条失败重试、恢复 gather-logs | ✅ 真机安装可用 |
 | r47 | 版本号方案（`2.4.5.47`/`240500047`）、**插件不可用时的安全降级**（不再拖垮下载）、W^X 探针、出包自检脚本 | ✅ 真机安装/探针通过（下载回归待用户确认） |
-| r48 | 冷启动：宿主不等引擎就绪、spawn 诊断移出关键路径、healthz 快轮询、宿主提前启动 + ArkWeb 预热、服务端启动细分打点 | ⏳ 待真机验证 |
+| r48 | 冷启动：宿主不等引擎就绪、spawn 诊断移出关键路径、healthz 快轮询、宿主提前启动 + ArkWeb 预热、服务端启动细分打点 | ✅ 真机验证：宿主 ready **2500→2026ms**；点图标→仪表板 ≈5.6s→4.2s；引擎"启动中→就绪"符合预期 |
+| r49 | 引擎启动快连（RPC 退避 500ms→20/40/80…）、JIT 探针驱动（有 ACL 自动走 JIT，否则回退 jitless）、插件运行时状态动态化、受限权限构建开关 | ⏳ 待真机验证 |
 
 **踩过的坑（写进 [BUILD](BUILD.md)/[RUNTIME](RUNTIME.md)，别再踩）**：
 HAP `libs/` 下可执行文件必须带扩展名（否则 `9568393`）；签名过的 ELF 覆盖会 `EPERM`（先删后铺）；
@@ -73,7 +74,8 @@ ArkWeb 同一 host 只有 **6 条连接**——任何"失败快速重试"都必�
 |---|---|---|---|---|
 | 1 | **插件运行时落地**：探针已判 **`execmemAllowed:false`** ⇒ 放开 JIT 不可行。改为在 `quick-js-worker` 接一个 **`node:vm` 兼容层**（无 WebAssembly 时自动切换），先在本地 `dev-local-repro` 用真实 libnode + 真实 server 装内置插件跑通 | 你装了插件跑不起来；方案已定 | 无（本机可全流程验证） | 1–2 轮 |
 | ~~2~~ | ~~冷启动（第一轮）~~ | **r48 已做**：拆掉"等引擎就绪"、spawn 诊断移出关键路径、宿主/ArkWeb 并行启动、服务端启动细分打点 | 已出包 | 待真机 | 
-| 2b | **冷启动（第二轮）**：按 r48 新增的 `boot:` 细分（server 端 listen 之前约 1s+）继续削：GeoIP / 插件注册扫描 / 引擎启动 / session 恢复 哪一步最贵 | 用户可感知 | r48 真机 `node-output.log` | 一轮 |
+| 2b | **冷启动（第二轮）**：r48 细分已定位——engine start **663ms**（其中 `stage rpc` **515ms** 是固定 500ms 退避），r49 已改快连（预计 -450ms）；其余 geoip 3ms / session 5ms / recovery 15ms / listen 9ms 都不值得动 | 用户可感知 | 已做进 r49 | 已完成 |
+| 2c | **冷启动（第三轮，可选）**：r49 后若仍想更快，可考虑把渲染层首屏（约 1s）再削：按路由懒加载/首屏查询合并 | 锦上添花 | r49 真机数据 | 按需 |
 | ~~3~~ | ~~发布工程~~ | **只自己用 ⇒ 大幅收口**：不做 release 签名/市场分发；`versionCode` 方案已落地，出包自检已脚本化（`scripts/verify-hap.mjs`） | 已按 r47 落地 | — |
 | 3 | **待点验能力扫尾**：限速、任务详情、批量、创建种子、Tracker、代理、GeoIP、单实例、reveal/open | 这些"已实现未验"，验完才能叫完成 | 真机逐项点验（可配 devbridge 半自动） | 2–3 轮 |
 | 4 | **代理/TUN 兜底**（待决策，见第四节）：`ProxyController.applyProxyOverride` + bypass `127.0.0.1`，做成可开关 | 环境一变整个前端连不上，体验最差 | 决策 + 一轮验证 | 一轮 |
@@ -159,6 +161,7 @@ Electron 专属能力（托盘/窗口/对话框/自启/深链）由 **ArkTS 壳*
 | 7 | ArkWeb 尺寸：dpr 1.9、窗口约 1101×734 CSS px | 真机 dump |
 | 8 | `statusBarManager` 托盘：左键 = `StatusBarViewExtensionAbility`，右键 = 菜单；`hideAbility()` 需状态栏挂靠的 `BackGroundAbility` | 真机验证 |
 | 9 | **应用域禁止可执行内存（W^X）**：`mmap(RW)→mprotect(RX)` 与 `mmap(RWX)` 都返回 `EINVAL` | r47 `wx-probe.json`：`execmemAllowed:false` |
+| 9b | 该管控是**官方内核级策略**（官方文档记载 `EINVAL` 为预期）；合法途径只有受限 ACL `ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY`（场景=内置 V8/LuaJIT 等语言虚拟机，PC/2in1+Tablet 支持，个人实名可申请，约 3 工作日） | 开发者 AI 回复（2026-11-26，附官方文档编号） |
 | 10 | `node:vm` 在 `--jitless` 下**可用**（无 WebAssembly 也行） | r47 本机 libnode 实测（eval/跨 context/async 均正常） |
 
 ---

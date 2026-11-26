@@ -59,17 +59,29 @@ export class Aria2RpcClient {
 
   // ─── Connection ──────────────────────────────────────────────
 
+  /**
+   * 连 aria2 的 JSON-RPC。
+   *
+   * 【HarmonyOS 移植 r49】退避改成"前快后慢"：aria2 从 spawn 到 RPC 可监听通常只要几十毫秒，
+   * 原来固定等 500ms 才会重试，于是"引擎启动"凭空多花 ~500ms（真机 boot 日志实测：
+   * `engine start stage slow: stage=rpc ms=515`，占掉整个引擎启动 663ms 的 515ms）。
+   * 现在先 20/40/80/160/250ms 快速试探，之后按调用方给的 delayMs 封顶；
+   * 等待总预算与原实现相近（10 次尝试约 3.5s，原实现 5s），但冷启动能早 ~450ms 连上。
+   */
   async connect(port: number, retries = 10, delayMs = 500): Promise<void> {
     this.pauseState.clear()
     this.invalidateTaskMetadata()
     const url = `ws://127.0.0.1:${port}/jsonrpc`
+    const fastDelaysMs = [20, 40, 80, 160, 250]
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
         await this.transport.connect(url)
         return
       } catch (err) {
         if (attempt === retries - 1) throw err
-        await new Promise((r) => setTimeout(r, delayMs))
+        const wait =
+          attempt < fastDelaysMs.length ? fastDelaysMs[attempt] : delayMs
+        await new Promise((r) => setTimeout(r, wait))
       }
     }
   }

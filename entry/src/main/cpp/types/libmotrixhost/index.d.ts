@@ -35,3 +35,22 @@ export const isHostRunning: () => boolean;
 
 /** 停止（当前恒为 ok:false，见上） */
 export const stopHost: () => StopHostResult;
+
+/**
+ * 同步探针：本进程能否申请**可执行匿名内存**（V8 JIT / WebAssembly）。
+ *
+ * HarmonyOS 内核对匿名内存可执行有强制管控（应用域返回 EINVAL）；
+ * 只有拿到受限 ACL `ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY` 才为 true。
+ * `startHost` 之前调用；ArkTS 据此决定 Node 是否带 `--jitless`（r49）。
+ */
+export const probeExecMemory: () => ExecMemoryProbeResult;
+
+export interface ExecMemoryProbeResult {
+  /** true = 可以申请可执行内存（JIT/WASM 可用） */
+  execmemAllowed: boolean;
+  /** mprotect(PROT_EXEC) 的 errno（0 = 成功） */
+  mprotectRxErrno: number;
+  /** mmap(PROT_READ|WRITE|EXEC) 的 errno（0 = 成功） */
+  mmapRwxErrno: number;
+  pageSize: number;
+}

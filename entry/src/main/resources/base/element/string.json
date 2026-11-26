@@ -37,6 +37,10 @@
       "value": "用于在任务栏图标上显示下载进度"
     },
     {
+      "name": "perm_jit_reason",
+      "value": "用于开启应用内置 JavaScript 引擎（V8）的 JIT 编译以提升运行性能"
+    },
+    {
       "name": "BackGroundAbility_desc",
       "value": "后台下载服务（托盘保活）"
     },

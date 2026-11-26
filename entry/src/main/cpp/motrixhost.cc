@@ -354,11 +354,33 @@ napi_value StopHost(napi_env env, napi_callback_info info) {
   return out;
 }
 
+// 同步探针：供 ArkTS 在**起 Node 之前**决定要不要带 --jitless（r49）。
+// 给可执行匿名内存 ⇒ V8 JIT/WASM 可用（需要 ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY
+// 的 ACL）；不给（含"坚盾守护模式"）⇒ 回退 --jitless，功能不受影响。
+napi_value ProbeExecMemoryNative(napi_env env, napi_callback_info info) {
+  (void)info;
+  napi_value out = nullptr;
+  napi_create_object(env, &out);
+  const WxProbeResult probe = ProbeExecMemory();
+  const bool allowed = probe.mprotectRxErrno == 0 || probe.mmapRwxErrno == 0;
+  napi_value value = nullptr;
+  napi_get_boolean(env, allowed, &value);
+  napi_set_named_property(env, out, "execmemAllowed", value);
+  napi_create_int32(env, probe.mprotectRxErrno, &value);
+  napi_set_named_property(env, out, "mprotectRxErrno", value);
+  napi_create_int32(env, probe.mmapRwxErrno, &value);
+  napi_set_named_property(env, out, "mmapRwxErrno", value);
+  napi_create_int32(env, static_cast<int32_t>(probe.pageSize), &value);
+  napi_set_named_property(env, out, "pageSize", value);
+  return out;
+}
+
 napi_value Init(napi_env env, napi_value exports) {
   OH_LOG_Print(LOG_APP, LOG_INFO, 0x0000, "MOTRIX-SHIM", "Init called: creating exports object");
   napi_property_descriptor desc[] = {
       {"runtimeVersion", nullptr, RuntimeVersion, nullptr, nullptr, nullptr, napi_default, nullptr},
       {"startHost", nullptr, StartHost, nullptr, nullptr, nullptr, napi_default, nullptr},
+      {"probeExecMemory", nullptr, ProbeExecMemoryNative, nullptr, nullptr, nullptr, napi_default, nullptr},
       {"isHostRunning", nullptr, IsHostRunning, nullptr, nullptr, nullptr, napi_default, nullptr},
       {"stopHost", nullptr, StopHost, nullptr, nullptr, nullptr, napi_default, nullptr},
   };
