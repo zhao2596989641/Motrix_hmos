@@ -18,7 +18,7 @@ r47 起版本号改为 `2.4.5.47` / `240500047`，并修掉了"装插件会让�
 | 维度 | 状态 |
 |---|---|
 | 装机形态 | HAP `com.lyldeer.motrix`，2in1 / aarch64 / API 26（target+compatible 均 `26.0.0`），debug 签名（**只自己用**，见待决策 4） |
-| 版本号 | `versionCode 240500050` / `versionName 2.4.5.50`（方案：上游 2405 + 占位 00 + 轮次 050） |
+| 版本号 | `versionCode 240500051` / `versionName 2.4.5.51`（方案：上游 2405 + 占位 00 + 轮次 051） |
 | JIT / 插件 | **受限 ACL 已到位**（调试 profile `acls` 含 `ALLOW_WRITABLE_CODE_MEMORY`）⇒ r50 起 Node 走 V8 JIT，
 `WebAssembly` 可用、上游 QuickJS 插件沙箱可工作；坚盾模式自动回退 `--jitless` |
 | 端侧运行时 | 进程内 `libnode.so.137`（Node 24.2.0，`--jitless`）+ Motrix server（fastify）+ ArkWeb 同源加载官方 Web UI |
@@ -62,7 +62,8 @@ r47 起版本号改为 `2.4.5.47` / `240500047`，并修掉了"装插件会让�
 | r47 | 版本号方案（`2.4.5.47`/`240500047`）、**插件不可用时的安全降级**（不再拖垮下载）、W^X 探针、出包自检脚本 | ✅ 真机安装/探针通过（下载回归待用户确认） |
 | r48 | 冷启动：宿主不等引擎就绪、spawn 诊断移出关键路径、healthz 快轮询、宿主提前启动 + ArkWeb 预热、服务端启动细分打点 | ✅ 真机验证：宿主 ready **2500→2026ms**；点图标→仪表板 ≈5.6s→4.2s；引擎"启动中→就绪"符合预期 |
 | r49 | 引擎启动快连（RPC 退避 500ms→20/40/80…）、JIT 探针驱动（有 ACL 自动走 JIT，否则回退 jitless）、插件运行时状态动态化、受限权限构建开关 | ✅ 代码就绪（JIT 在 r50 生效） |
-| r50 | **JIT 正式启用**（ACL 到位）：Node 不带 `--jitless`、WebAssembly 恢复、上游 QuickJS 插件沙箱可用；清单声明跟随文件状态 | ✅ 真机验证 JIT/WASM/插件沙箱均工作；发现"慢插件 hook 超时会 abort 任务"+"启动时激活插件 +477ms" 两个问题（r51 修） |
+| r50 | **JIT 正式启用**（ACL 到位）：Node 不带 `--jitless`、WebAssembly 恢复、上游 QuickJS 插件沙箱可用；清单声明跟随文件状态 | ✅ 真机验证 JIT/WASM/插件沙箱；发现慢插件超时 abort 任务 + 启动激活 +479ms（r51 修） |
+| r51 | 插件健壮化：JIT 下退回原生 undici（不装垫片）、hook 超时 fail-open、startup 激活挪后、RPC 错误日志、签名口令自动同步 | ⏳ 待真机验证（重点：**插件安装失败是否修复**） |
 
 **踩过的坑（写进 [BUILD](BUILD.md)/[RUNTIME](RUNTIME.md)，别再踩）**：
 HAP `libs/` 下可执行文件必须带扩展名（否则 `9568393`）；签名过的 ELF 覆盖会 `EPERM`（先删后铺）；

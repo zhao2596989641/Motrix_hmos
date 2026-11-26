@@ -253,6 +253,14 @@ export async function createApp(
       return sendRpcValue(reply, await handler(...(req.body?.args ?? [])))
     } catch (err) {
       req.log.error({ err }, 'command handler failed')
+      // HarmonyOS 移植 r51：fastify 的请求日志在本项目的 server 配置里可能被关掉，
+      // 真机上 renderer 只看到 500、node-output.log 里却没有任何原因（插件安装失败
+      // 排查时就卡在这）。这里额外把通道与错误打到 stdout（会被原生层收进 node-output.log）。
+      console.error(
+        '[rpc] command failed',
+        channel,
+        err instanceof Error ? err.message : String(err)
+      )
       return reply
         .code(err instanceof ServiceUnavailableError ? 503 : 500)
         .send({ error: (err as Error).message })

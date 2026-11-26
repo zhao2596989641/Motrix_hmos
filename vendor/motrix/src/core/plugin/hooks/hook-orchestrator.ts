@@ -129,6 +129,19 @@ interface ChainEntry {
   role: RoleBand
 }
 
+/**
+ * HarmonyOS 移植 r51：hook **超时**不等于"插件明确拒绝"。
+ *
+ * 真机案例：smart-link 在解析 GitHub 仓库页时联网没在 10s 预算内答完 → 超时 → 因为
+ * role=resolve 属 critical，上游直接 abort 整条链 → 任务创建失败（500）。
+ * 对自用场景，超时应当 fail-open：丢掉这个插件的改动、任务继续，只留告警。
+ */
+function isHookTimeoutError(error: unknown): boolean {
+  const e = error as { code?: string; message?: string }
+  if (e?.code === 'plugin.hook.timeout') return true
+  return typeof e?.message === 'string' && /timed out after \d+ms/.test(e.message)
+}
+
 function abortsChainOnFailure(hook: SeriesHook, entry: ChainEntry): boolean {
   // HarmonyOS 移植（r47）：插件沙箱需要 WebAssembly。缺失时 hook 必然失败，
   // 这里把"critical 角色失败即 abort 整条任务"降级成 fail-open —— 宁可丢掉插件效果，
@@ -299,7 +312,14 @@ export class HookOrchestrator {
           error: message,
         })
 
-        if (abortsChainOnFailure('beforeCreate', entry)) {
+        const timedOut = isHookTimeoutError(e)
+        if (timedOut) {
+          log.warn(
+            { taskId, pluginId: entry.id, role: entry.role, error: message },
+            'plugin hook timed out; dropping its effects and continuing (fail-open)'
+          )
+        }
+        if (!timedOut && abortsChainOnFailure('beforeCreate', entry)) {
           await this.opts.auditLog?.log({
             type: 'chain.abort',
             hook: 'beforeCreate',
@@ -473,7 +493,7 @@ export class HookOrchestrator {
           error: message,
         })
 
-        if (abortsChainOnFailure('beforeFinalize', entry)) {
+        if (!isHookTimeoutError(e) && abortsChainOnFailure('beforeFinalize', entry)) {
           await this.opts.auditLog?.log({
             type: 'chain.abort',
             hook: 'beforeFinalize',

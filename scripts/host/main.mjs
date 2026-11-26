@@ -877,32 +877,48 @@ probeStep('06 desc WebSocket', () => {
   return d.get ? 'accessor' : `value:${typeof d.value}`
 })
 
-// fetch：纯 JS 实现（node:http/https 用原生 llhttp，不碰 WASM）
-const shimFetch = buildShimFetch()
-probeStep('07 defineProperty fetch', () => {
-  Object.defineProperty(globalThis, 'fetch', { configurable: true, writable: true, value: shimFetch })
-  return 'done'
-})
-probeStep('08 defineProperty Headers', () => {
-  Object.defineProperty(globalThis, 'Headers', { configurable: true, writable: true, value: ShimHeaders })
-  return 'done'
-})
-probeStep('09 require ws', () => {
-  const req = createRequire(import.meta.url)
-  const ws = req('ws')
-  globalThis.__motrixWs = ws
-  return `ws.WebSocket=${typeof ws.WebSocket}`
-})
-probeStep('10 defineProperty WebSocket', () => {
-  const ws = globalThis.__motrixWs
-  if (!ws || typeof ws.WebSocket !== 'function') return 'skipped(no ws)'
-  Object.defineProperty(globalThis, 'WebSocket', { configurable: true, writable: true, value: ws.WebSocket })
-  return 'done'
-})
-delete globalThis.__motrixWs
+// ★ r51：垫片只在 **jitless（无 WebAssembly）** 时安装。
+//
+// 为什么：这套 shim 是为了绕开"undici 的 llhttp WASM 在 jitless 下加载即炸"。
+// 拿到 JIT/ACL 后 WebAssembly 可用，**undici 原生就能跑** —— 此时再覆盖全局
+// fetch/Headers/WebSocket 反而有害：
+//   · 服务端 `plugin-http-client.ts` 明确 `import { fetch, Agent, ProxyAgent } from 'undici'`，
+//     但它构造请求头用的是全局 `Headers`；全局被换成我们的 shim 后，交给 undici 的
+//     Headers 实例语义不完全一致 ⇒ 插件市场/插件下载这类网络请求容易出奇怪失败；
+//   · 原生 undici/fetch 还支持 `NODE_USE_ENV_PROXY` 等代理路径，shim 不支持。
+// 所以：JIT 在线 ⇒ 一个 shim 都不装，让 Node 用原生实现；jitless ⇒ 照旧装。
+const needsJitlessShims = typeof WebAssembly === 'undefined'
+if (needsJitlessShims) {
+  // fetch：纯 JS 实现（node:http/https 用原生 llhttp，不碰 WASM）
+  const shimFetch = buildShimFetch()
+  probeStep('07 defineProperty fetch', () => {
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, writable: true, value: shimFetch })
+    return 'done'
+  })
+  probeStep('08 defineProperty Headers', () => {
+    Object.defineProperty(globalThis, 'Headers', { configurable: true, writable: true, value: ShimHeaders })
+    return 'done'
+  })
+  probeStep('09 require ws', () => {
+    const req = createRequire(import.meta.url)
+    const ws = req('ws')
+    globalThis.__motrixWs = ws
+    return `ws.WebSocket=${typeof ws.WebSocket}`
+  })
+  probeStep('10 defineProperty WebSocket', () => {
+    const ws = globalThis.__motrixWs
+    if (!ws || typeof ws.WebSocket !== 'function') return 'skipped(no ws)'
+    Object.defineProperty(globalThis, 'WebSocket', { configurable: true, writable: true, value: ws.WebSocket })
+    return 'done'
+  })
+  delete globalThis.__motrixWs
+} else {
+  log('jitless 垫片跳过：WebAssembly 可用，直接用 Node 原生 fetch/Headers/WebSocket（undici）')
+}
 log('probe-11: shim section done')
 writeStage('shims_ready', {
   wasm: typeof WebAssembly,
+  shims: needsJitlessShims ? 'jitless-shim' : 'native',
   // HarmonyOS 移植：无 WebAssembly ⇒ 上游 QuickJS 插件沙箱不可用。
   // server 侧据此跳过插件激活，并把 hook 失败降级为 fail-open（见 vendor 补丁）。
   pluginRuntime: typeof WebAssembly === 'undefined' ? 'unavailable' : 'ready',

@@ -1707,21 +1707,10 @@ async function main() {
     }
     log.info('GeoIPManager started')
 
-    try {
-      await pluginActivation.dispatch({ kind: 'startup' })
-    } catch (err) {
-      if (!shellAsyncWork.isAccepting()) {
-        await pluginHost.shutdown()
-        return
-      }
-      throw err
-    }
-    if (!shellAsyncWork.isAccepting()) {
-      await pluginHost.shutdown()
-      return
-    }
-    bootMark('plugin-activation-done')
-
+    // r51：插件 startup 激活**挪到 HTTP 就绪之后**（下面 http-listening 之后）。
+    // 真机实测：两个插件在启动期激活要 ~479ms，全压冷启动关键路径上不值；
+    // 任务/命令触发时仍会按需激活（taskAdded / hookDemand / command 事件），
+    // 只是把"启动那一刻"的开销挪到 UI 已经在加载之后。
     speedLimitController.start()
 
     if (devPath) {
@@ -2110,6 +2099,15 @@ async function main() {
       : `http://localhost:${port}`
     log.info({ port, url: serverUrl }, `server listening at ${serverUrl}`)
     bootMark('http-listening', { port, engineState: supervisor.getStatus().state })
+    // r51：HTTP 已就绪 ⇒ 宿主马上能拿到 ready、UI 开始加载；插件激活在这之后异步进行。
+    runShellAsyncWork('plugin startup activation', async () => {
+      try {
+        await pluginActivation.dispatch({ kind: 'startup' })
+        log.info('plugin startup activation finished')
+      } catch (err) {
+        log.warn({ err }, 'plugin startup activation failed (continuing)')
+      }
+    })
 
     let bridgeSetupStage:
       | 'process-ownership'

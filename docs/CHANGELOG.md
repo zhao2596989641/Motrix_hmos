@@ -3,6 +3,29 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r51 · 插件健壮化 + JIT 下退回原生网络栈 + 签名口令自动同步（2026-11-26）
+
+> 真机 r50 暴露三件事：①插件沙箱真的能跑（JIT 生效），②**慢插件 hook 超时会 abort 任务创建**，
+> ③启动时激活插件让冷启动 +479ms；另有"两个插件下载不下来"待查。
+
+- **JIT 模式下不再安装 jitless 网络垫片**（重要）：r50 仍无条件用纯 JS `fetch/Headers/WebSocket`
+  覆盖全局。服务端 `plugin-http-client` 明确用 undici（`Agent/ProxyAgent/fetch`），却拿的是我们
+  被替换过的全局 `Headers` ⇒ 插件市场/插件下载这类请求容易出奇怪失败。现在：
+  `typeof WebAssembly !== 'undefined'` 时不装任何 shim，直接用 Node 原生 undici；
+  jitless 时照旧装（那套 shim 本来就是为 undici-wasm 炸掉准备的）。
+- **hook 超时改为 fail-open**：超时（`plugin.hook.timeout` / `timed out after Nms`）≠ 插件明确拒绝。
+  以前 role=resolve/post-process 超时会让整条任务链 abort（r50 真机：smart-link 解析 GitHub 仓库页
+  超 10s ⇒ 任务创建 500）。现在丢掉该插件的改动、任务继续，只留 warn。
+- **启动期插件激活移出关键路径**：`pluginActivation.dispatch({kind:'startup'})` 从 listen 之前
+  挪到 listen 之后异步执行（r50 实测启动激活 ~479ms）；任务/命令触发时仍会按需激活。
+- **签名口令自动同步**：DevEco 重新自动签名会换密钥库口令，本地 `build-profile.local.json5`
+  的旧密文对不上新 p12（`KEYSTORE_PASSWORD_ERROR -115`，本轮踩到）。新增
+  `scripts/refresh-local-signing.mjs`（从 `.hvigor/outputs/sync/output.json` 读最新密文），
+  `apply-local-signing.sh` 构建前自动调用。
+- **RPC 命令失败补日志**：`command:installPlugin` 等返回 500 时，除了 renderer 看到错误，
+  node-output.log 里现在有 `[rpc] command failed <channel> <原因>`（fastify 请求日志可能被关掉）。
+- 版本 `2.4.5.51` / `240500051`；徽章 `HarmonyOS Port r51`。
+
 ## r50 · JIT 正式启用（受限 ACL 已到位，V8 JIT / WebAssembly 恢复）（2026-11-26）
 
 > 维护者在 DevEco 重新自动签名后，调试 profile 的 `acls.allowed-acls` 已包含
