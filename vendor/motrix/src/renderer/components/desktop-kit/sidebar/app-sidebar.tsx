@@ -48,19 +48,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation()
   const direction = useDirection()
   const { visible } = useLegacyImportNavigation()
-  // 注：插件入口曾经在鸿蒙壳里隐藏过；主人要求先保留（他要试能不能找到适配办法），
-  // 暂时恢复显示。真正不可用的只有 Electron 专属能力，「完成后关机」仍隐藏。
-  const navItems = NAV_ITEMS
   const items = visible
     ? [
-        ...navItems,
+        ...NAV_ITEMS,
         {
           to: LEGACY_MIGRATION_ROUTE,
           icon: MigrationIcon,
           labelKey: 'legacyImport.navigation',
         },
       ]
-    : navItems
+    : NAV_ITEMS
 
   return (
     <Sidebar

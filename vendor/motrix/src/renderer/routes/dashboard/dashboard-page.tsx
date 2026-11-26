@@ -54,8 +54,6 @@ export function DashboardPage() {
     engineStatus.state !== 'disconnected' && engineStatus.state !== 'failed'
 
   useEffect(() => {
-    // 诊断：配合 arkts-diag 的 web-console 观察"切页再回来"是否重复挂载、是否卡在启动中
-    console.log('[motrix] dashboard mounted')
     let cancelled = false
     transport
       .invoke(Queries.GetSettings)

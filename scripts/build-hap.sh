@@ -66,13 +66,11 @@ node --require "$FAKE_PLATFORM" "$HERE/build-node-bundle.mjs"
 # 注意：better_sqlite3 **不在这里签名**。它以 flat `libbetter_sqlite3.so` 放进
 # entry/libs/arm64-v8a/（第 3 步的 build-node-bundle.mjs 负责），HAP 的 libs/ 本身受信，
 # 不需要自签名；留在 resfile 里的 .node 反而会被系统拦掉 dlopen（"No error information"）。
-say "4/5 签名将随 libs/ 打包的原生件"
+say "4/5 检查/签名 resfile 里的原生件"
 BUNDLE_APP="$ROOT/entry/src/main/resources/resfile/app"
-# 签的是 build/bin 里的"源"，不是 resfile 副本：resfile 里已经不放 bin 了（省 11.5MB），
-# 端侧执行的是 4b 拷进 entry/libs 的同一个签名后字节。
 sh "$HERE/sign-elf-appcert.sh" \
-  "$ROOT/build/bin/aria2c" \
-  "$ROOT/build/bin/motrix-finalize-fs"
+  "$BUNDLE_APP/bin/aria2c" \
+  "$BUNDLE_APP/bin/motrix-finalize-fs"
 echo "（缺哪个会显示 skip，不影响其余）"
 
 FLAT_SQLITE="$ROOT/entry/libs/arm64-v8a/libbetter_sqlite3.so"
@@ -98,7 +96,7 @@ mkdir -p "$LIBS_ABI"
 for pair in "aria2c:aria2c.bin" "motrix-finalize-fs:motrix-finalize-fs.bin"; do
   name=${pair%%:*}
   staged=${pair#*:}
-  src="$ROOT/build/bin/$name"
+  src="$BUNDLE_APP/bin/$name"
   [ -f "$src" ] || { echo "!! 缺 $src" >&2; exit 1; }
   # 先删后铺：目标可能是上一次构建留下的 inode，避免覆盖时踩到封存态
   rm -f "$LIBS_ABI/$staged.new"

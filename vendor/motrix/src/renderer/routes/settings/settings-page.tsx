@@ -18,9 +18,9 @@ export function SettingsPage() {
       session.status?.mode === 'synologyDsm' &&
       session.status.nasCapabilities?.settings === true
   )
-  // 注：集成卡片曾在鸿蒙壳里隐藏；主人要求先保留（他要试适配），暂时恢复显示。
-  const baseCards = SETTINGS_CARDS
-  const cards = isSynology ? [...baseCards, NAS_SETTINGS_CARD] : baseCards
+  const cards = isSynology
+    ? [...SETTINGS_CARDS, NAS_SETTINGS_CARD]
+    : SETTINGS_CARDS
   const activeCard = findCard(cardId, cards)
   const lastRowStart = (columns: number) =>
     Math.floor((cards.length - 1) / columns) * columns

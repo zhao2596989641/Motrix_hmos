@@ -65,32 +65,22 @@ copy(path.join(UPSTREAM, 'extra'), path.join(OUT, 'extra'))
 log('extra/ 已拷入')
 
 // ── 5. 原生二进制 ────────────────────────────────────────────────────────────
-//
-// 【默认不拷进 resfile】端侧真正执行的副本在 entry/libs/arm64-v8a/*.bin（见 build-hap.sh 4b），
-// resfile 里再放一份纯属重复：白白多 11.5MB，还多一处"两份会不会不一致"的隐患。
-// 端侧宿主解析顺序是 libs/ 优先，resfile/app/bin 只是历史兜底（本地 repro 用 build/native），
-// 所以这里默认跳过。需要旧行为时设环境变量 MOTRIX_RESFILE_BIN=1。
-const includeResfileBin = process.env.MOTRIX_RESFILE_BIN === '1'
-if (includeResfileBin) {
-  fs.mkdirSync(path.join(OUT, 'bin'), { recursive: true })
-  const binaries = ['aria2c', 'motrix-finalize-fs']
-  for (const name of binaries) {
-    const candidates = [
-      path.join(PREFERRED_BIN, name),
-      path.join(NATIVE, name),
-      path.join(ROOT, 'build', 'native', 'host', name),
-    ]
-    const found = candidates.find((p) => exists(p))
-    if (!found) {
-      log(`警告：找不到 ${name}（候选：${candidates.join(', ')}）—— 端侧对应功能不可用`)
-      continue
-    }
-    fs.copyFileSync(found, path.join(OUT, 'bin', name))
-    fs.chmodSync(path.join(OUT, 'bin', name), 0o755)
-    log(`bin/${name} ← ${found}`)
+fs.mkdirSync(path.join(OUT, 'bin'), { recursive: true })
+const binaries = ['aria2c', 'motrix-finalize-fs']
+for (const name of binaries) {
+  const candidates = [
+    path.join(PREFERRED_BIN, name),
+    path.join(NATIVE, name),
+    path.join(ROOT, 'build', 'native', 'host', name),
+  ]
+  const found = candidates.find((p) => exists(p))
+  if (!found) {
+    log(`警告：找不到 ${name}（候选：${candidates.join(', ')}）—— 端侧对应功能不可用`)
+    continue
   }
-} else {
-  log('跳过 resfile/app/bin（可执行文件随 entry/libs/arm64-v8a/*.bin 提供，省 11.5MB）')
+  fs.copyFileSync(found, path.join(OUT, 'bin', name))
+  fs.chmodSync(path.join(OUT, 'bin', name), 0o755)
+  log(`bin/${name} ← ${found}`)
 }
 
 // ── 6. CA 证书束（aria2 的 HTTPS 靠它；鸿蒙上没有 /etc/ssl/certs 全集） ──────

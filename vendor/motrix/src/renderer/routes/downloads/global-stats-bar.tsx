@@ -1,4 +1,3 @@
-import { isHarmonyShell } from '@renderer/lib/platform-actions'
 import { useSyncExternalStore } from 'react'
 import { DownloadsMoreMenu } from './downloads-more-menu'
 import { DownloadsStatusPopover } from './downloads-status-popover'
@@ -32,8 +31,7 @@ export function GlobalStatsBar() {
       data-compact={compact}
       className="flex w-full min-w-0 items-center gap-2"
     >
-      {/* 完成后关机是 Electron 主进程专属能力，鸿蒙壳里点了只会显示"不可用" */}
-      {!isHarmonyShell() && <DownloadsMoreMenu />}
+      <DownloadsMoreMenu />
       {compact ? (
         <DownloadsStatusPopover />
       ) : (

@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.lyldeer.motrix",
     "vendor": "lyldeer",
-    // versionCode：1000000 + 轮次号（r39 ⇒ 1000039）；versionName 跟随上游 2.4.5
-    "versionCode": 1000039,
+    // versionCode 每次出包必加；versionName 跟随上游 2.4.5，后缀表示壳轮次
+    "versionCode": 1000000,
     "versionName": "2.4.5.0",
     "icon": "$media:layered_image",
     "label": "$string:app_name"

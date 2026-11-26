@@ -1536,8 +1536,7 @@
         "websiteDescription": "Visit motrix.app",
         "acknowledgments": "Acknowledgments",
         "acknowledgmentsDescription": "View project credits on motrix.app"
-      },
-      "harmonyAutostartHint": "Auto-start: HarmonyOS does not allow third-party apps to enable it themselves. Allow Motrix in Settings → App launch management (or the system equivalent)."
+      }
     },
     "bittorrent": {
       "trackers": {

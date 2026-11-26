@@ -3,6 +3,25 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## 回档：源码回到 r38（2026-11-26 14:35）
+
+r39~r43 的改动（入口收敛 / HAP 减体积 / 关于页徽章与自启提示 / 仪表板状态缓存）**全部回退到 r38 快照**，
+原因：真机上出现"前端无法连接服务器"，排查日志（node-output.log 948 次 `NetworkTransactionTimeout`、
+arkts-diag `signal timed out`）指向 **系统代理/梯子劫持了 127.0.0.1**，
+与这些改动无直接关系，但为保证可用先回退到已验证版本。
+
+保留（非功能性）：
+- `scripts/sign-elf-appcert.mjs` 的 `.profile` strip 修复（否则重复构建会签名失败）
+- `docs/RELEASE.md`、`docs/TESTING.md` 等文档
+- 仓库本身
+
+回退后验证：重新构建的 renderer 产物 hash 与 r38 HAP 内完全一致
+（`app-root-nnoPDFU1.js` / `index-X2IvZFmr.js`），versionCode 回到 1000000。
+
+**环境注意事项（重要）**：鸿蒙上任何"系统代理/TUN 未排除 127.0.0.1"的状态都会让 ArkWeb → 本地 server
+的请求超时，表现为"前端无法连接服务器"或数据不刷新。测试前请把 `127.0.0.1/32`、`::1`、`localhost`
+加进代理例外，或关闭梯子。
+
 ## r43 · 入口恢复显示 + 仪表板"引擎启动中"卡住修复
 
 - **入口恢复**：插件 / 集成卡片 / 应用内更新重新显示（仅保留「完成后关机」隐藏）——

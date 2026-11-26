@@ -591,20 +591,11 @@ function installNativeRedirect(libsDir) {
 }
 
 // 顶层异常也要留下痕迹：设备上没有 DevEco 时，node-output.log 是唯一线索
-const stageHistory = []
-const bootStartedAt = Date.now()
-
 function writeStage(stage, detail) {
   currentStage = stage
-  const at = Date.now()
-  stageHistory.push({ stage, at, deltaMs: at - bootStartedAt })
   try {
     const stagePath = path.join(sandboxHome, 'boot-stage.json')
-    // 保留完整时间线（stages[]）：冷启动优化时可以直接看每一步耗时，而不是只知道"最后到了哪"
-    fs.writeFileSync(
-      stagePath,
-      JSON.stringify({ stage, detail, at, startedAt: bootStartedAt, stages: stageHistory })
-    )
+    fs.writeFileSync(stagePath, JSON.stringify({ stage, detail, at: Date.now() }))
   } catch {}
 }
 writeStage('env_ready', { appRoot, dataDir, saveDir: env.MOTRIX_DEFAULT_SAVE_DIR })
@@ -673,20 +664,7 @@ function runSpawnDiagnostics() {
     )
   } catch {}
 }
-// 【延迟跑】诊断探针会 spawnSync 4~5 次（每次几十毫秒，aria2 --version 更慢），
-// 放在启动链路上等于白白拖慢首屏。这里改成 ready 之后延迟 8 秒再跑：
-// 目的是留证据（spawn-probe.json），不是阻塞启动。
-// 需要改回同步：搜索这一行，直接调用即可。
-function scheduleSpawnDiagnostics() {
-  const timer = setTimeout(() => {
-    try {
-      runSpawnDiagnostics()
-    } catch (error) {
-      log('spawn 诊断失败（不影响运行）：', error && error.message)
-    }
-  }, 8000)
-  timer.unref?.()
-}
+runSpawnDiagnostics()
 
 // ── 启动前清理自家孤儿子进程（aria2c / motrix-finalize-fs）───────────────────
 //
@@ -1397,7 +1375,6 @@ const trayTimer = setInterval(() => {
 }, 1000)
 trayTimer.unref?.()
 log('托盘桥已启动：tray-state.json / tray-cmd.jsonl')
-scheduleSpawnDiagnostics()
 
 // ── 停止通道：文件信号（同进程 Node 无法从外部线程停，只能自己退） ───────────
 const stopPath = path.join(sandboxHome, 'host-stop-request')

@@ -178,8 +178,7 @@ function signOne(file, config) {
   }
   const sections = run(READELF, ['-S', file])
   const remove = []
-  // 这两个段是上一次签名留下的：不先删掉，binary-sign-tool 会报
-  // ".profile section already exists / WriteSecDataToFile error"（build/bin 里的源二进制会被反复签）
+  // 重复构建时源二进制可能已带上次签名段：不 strip，binary-sign-tool 会报 .profile already exists
   if (sections.includes('.codesign')) remove.push('--remove-section', '.codesign')
   if (sections.includes('.profile')) remove.push('--remove-section', '.profile')
   if (sections.includes('.permission')) remove.push('--remove-section', '.permission')
