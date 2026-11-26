@@ -17,7 +17,10 @@ import {
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
-import { useEngineDisplayStatus } from './use-engine-display-status'
+import {
+  __resetEngineStatusStoreForTests,
+  useEngineDisplayStatus,
+} from './use-engine-display-status'
 
 const health = vi.hoisted(() => ({ realtimeConnected: true, status: 'ready' }))
 vi.mock('./use-task-list', () => ({ useTaskList: () => health }))
@@ -52,6 +55,9 @@ function Surfaces() {
 }
 
 beforeEach(() => {
+  // The status store is module-level and deliberately outlives mounts; reset
+  // it before the session mock changes so no test inherits a prior snapshot.
+  __resetEngineStatusStoreForTests()
   vi.clearAllMocks()
   vi.mocked(transport.invoke).mockImplementation(async (channel) =>
     channel === Queries.GetSettings
@@ -189,7 +195,7 @@ it('applies an engine event immediately and rejects an older ready response', as
   expect(result.current.failureReason).toBe('rpc_unavailable')
 })
 
-it('keeps successful engine reads usable and bounded across connection flapping', async () => {
+it('reuses one coalesced read across display-only connection flapping', async () => {
   const pending = deferred()
   vi.mocked(transport.invoke).mockReturnValue(pending.promise)
   const { result, rerender } = renderHook(() => useEngineDisplayStatus())
@@ -197,12 +203,10 @@ it('keeps successful engine reads usable and bounded across connection flapping'
     health.realtimeConnected = !health.realtimeConnected
     rerender()
   }
+  // One engine read + one settings read, however often the display flaps:
+  // re-reading the engine on every connection edge is what saturated the
+  // pooled web transport on device.
   expect(transport.invoke).toHaveBeenCalledTimes(2)
-  vi.mocked(transport.invoke).mockImplementation(async (channel) =>
-    channel === Queries.GetSettings
-      ? { engine: { rpcPort: 16800, listenPort: 51413 } }
-      : { state: 'ready', featureReport: { version: 'new' }, failure: null }
-  )
   await act(async () =>
     pending.resolve({
       state: 'ready',
@@ -210,9 +214,30 @@ it('keeps successful engine reads usable and bounded across connection flapping'
       engine: { rpcPort: 16800, listenPort: 51413 },
     })
   )
-  expect(transport.invoke).toHaveBeenCalledTimes(4)
+  expect(transport.invoke).toHaveBeenCalledTimes(2)
   expect(result.current.state).toBe('ready')
-  expect(result.current.version).toBe('new')
+  health.realtimeConnected = true
+
+  // A late remount (route switch) reuses the snapshot instead of re-reading.
+  const again = renderHook(() => useEngineDisplayStatus())
+  expect(again.result.current.state).toBe('ready')
+  expect(again.result.current.rpcPort).toBe(16800)
+  expect(transport.invoke).toHaveBeenCalledTimes(2)
+})
+
+it('does not regress a confirmed state when a follow-up read fails', async () => {
+  const { result } = renderHook(() => useEngineDisplayStatus())
+  await waitFor(() => expect(result.current.state).toBe('ready'))
+  vi.mocked(transport.invoke).mockRejectedValue(new Error('signal timed out'))
+  await act(async () => {
+    engineListener()?.('ready')
+  })
+  await act(async () => {})
+  // The retry is a single trailing read on the backoff cadence; its failure
+  // must not stamp a synthetic state over the confirmed snapshot.
+  expect(transport.invoke).toHaveBeenCalledTimes(3)
+  expect(result.current.state).toBe('ready')
+  expect(result.current.version).toBe('1.37.0')
 })
 
 it('ignores late engine and settings responses from a logged-out session', async () => {

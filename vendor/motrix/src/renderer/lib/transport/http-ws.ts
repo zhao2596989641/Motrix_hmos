@@ -52,6 +52,31 @@ function rpcKindFor(channel: string): 'command' | 'query' {
   return 'query'
 }
 
+// HarmonyOS 移植：真机排查用的网络诊断（只读、限流输出）。
+//
+// 背景：ArkWeb 对同一 host 只给 6 条 HTTP/1.1 连接。页面切换时一批读请求同时
+// 发出，一旦有请求卡住（服务端事件循环被占 / 引擎忙），排队中的请求会在各自的
+// 15s 超时点上集体失败，表现为"前端无法连接服务器"。这里只在鸿蒙壳里、且每类
+// 日志最多 12 行，把"哪个查询慢"和"发起时已有几条在飞"写进 arkts-diag。
+const QUERY_SLOW_MS = 3_000
+const QUERY_BURST_IN_FLIGHT = 5
+const DIAGNOSTIC_LOG_LIMIT = 12
+
+let queriesInFlight = 0
+let diagnosticLogs = 0
+
+function harmonyShell(): boolean {
+  const platform = (globalThis as { __MOTRIX_PLATFORM__?: unknown })
+    .__MOTRIX_PLATFORM__
+  return platform !== undefined && platform !== null
+}
+
+function reportTransportDiagnostic(message: string): void {
+  if (diagnosticLogs >= DIAGNOSTIC_LOG_LIMIT) return
+  diagnosticLogs += 1
+  console.warn(`[motrix] ${message}`)
+}
+
 export interface HttpWsOptions {
   fetch?: typeof fetch
   WebSocketCtor?: typeof WebSocket
@@ -143,41 +168,59 @@ export class HttpWsTransport implements Transport {
     }
     const kind = rpcKindFor(channel)
     const isInspectorActivity = channel === Queries.GetTaskInspectorActivity
-    const res = await this.fetchFn(
-      `${this.baseUrl}/rpc/${kind}/${encodeURIComponent(channel)}`,
-      {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          ...(isNasAuthMode(session.status?.mode) ? webOriginHeaders() : {}),
-        },
-        // Send the operator session cookie (Spec 9). Same-origin is the fetch
-        // default, but set it explicitly so the control-plane auth is obvious.
-        credentials: 'same-origin',
-        body: JSON.stringify({ args }),
-        // Reads may retry; a stalled fetch must release its network resources.
-        ...(kind === 'query' ? { signal: AbortSignal.timeout(15_000) } : {}),
-      }
-    )
-    if (res.status === 401) void refreshOperatorSession(session.epoch)
-    if (!res.ok) {
-      if (isInspectorActivity) {
-        throw new TransportError(
-          ErrorCode.EngineProtocolError,
-          'Request failed'
-        )
-      }
-      const text = await res.text()
-      throw new Error(`rpc failed ${res.status}: ${text}`)
-    }
-    let value: unknown
+    const isQuery = kind === 'query'
+    if (isQuery) queriesInFlight += 1
+    const startedAt = Date.now()
+    if (isQuery && queriesInFlight >= QUERY_BURST_IN_FLIGHT && harmonyShell())
+      reportTransportDiagnostic(
+        `query burst: ${queriesInFlight} reads in flight before ${channel}`
+      )
     try {
-      value = await res.json()
-    } catch (error) {
-      if (isInspectorActivity) throw new ProtocolEnvelopeError()
-      throw error
+      const res = await this.fetchFn(
+        `${this.baseUrl}/rpc/${kind}/${encodeURIComponent(channel)}`,
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            ...(isNasAuthMode(session.status?.mode) ? webOriginHeaders() : {}),
+          },
+          // Send the operator session cookie (Spec 9). Same-origin is the fetch
+          // default, but set it explicitly so the control-plane auth is clear.
+          credentials: 'same-origin',
+          body: JSON.stringify({ args }),
+          // Reads may retry; a stalled fetch must release its resources.
+          ...(kind === 'query' ? { signal: AbortSignal.timeout(15_000) } : {}),
+        }
+      )
+      if (res.status === 401) void refreshOperatorSession(session.epoch)
+      if (!res.ok) {
+        if (isInspectorActivity) {
+          throw new TransportError(
+            ErrorCode.EngineProtocolError,
+            'Request failed'
+          )
+        }
+        const text = await res.text()
+        throw new Error(`rpc failed ${res.status}: ${text}`)
+      }
+      let value: unknown
+      try {
+        value = await res.json()
+      } catch (error) {
+        if (isInspectorActivity) throw new ProtocolEnvelopeError()
+        throw error
+      }
+      return isInspectorActivity ? parseProtocolEnvelope(value) : value
+    } finally {
+      if (isQuery) {
+        queriesInFlight -= 1
+        if (harmonyShell()) {
+          const elapsed = Date.now() - startedAt
+          if (elapsed >= QUERY_SLOW_MS)
+            reportTransportDiagnostic(`slow query ${channel} ${elapsed}ms`)
+        }
+      }
     }
-    return isInspectorActivity ? parseProtocolEnvelope(value) : value
   }
 
   on(channel: EventChannel, cb: EventListener): void {

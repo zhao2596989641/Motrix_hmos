@@ -3,6 +3,31 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r45 · 引擎状态单例 store（修"切页回仪表板卡在引擎启动中"）（2026-11-26）
+
+只动渲染层的状态读取方式，**不动**服务端、不新增任何"快速重试"。
+
+- `useEngineDisplayStatus` 从"每个挂载实例各自读"改为**模块级单例 store**
+  （`src/renderer/hooks/use-engine-display-status.ts`）：
+  - 全局一份快照：切页/重挂载立刻拿到上次确认过的状态，**不再从 `starting` 起步闪一下；
+    曾经确认过 `ready` 的，即使后续读失败也保持 `ready`**（这是原来卡住的直接原因：
+    首个读超时 + 引擎状态没有变化 ⇒ 事件流不再推送 ⇒ 一直停在启动中）
+  - 全局最多 **1 条在飞读请求**（coalescer + trailing），修掉"一次挂载 4 个窗口面
+    × 2 条读 = 8 条并发"把 ArkWeb 6 条连接池压满的问题
+  - 失败退避 5s→10s→20s→30s（带抖动）；**从未确认过引擎时 5s 兜底**，保证冷启动自愈；
+    ※ 明确禁止毫秒级快速重试（r43 事故的根因）
+  - 事件流 `EngineStateChanged` 仍是主通道（即时、权威），轮询降级为兜底：
+    连接正常时 60s，断线 10s；`GetSettings` 只在首次/设置变更时读
+  - 会话锁定/epoch 变更会清空快照并使旧响应失效（`sessionGeneration`），
+    引擎事件只失效引擎读（`engineGeneration`），不会误伤在飞的设置读
+- `http-ws.ts` 增加**只读网络诊断**（仅鸿蒙壳、每类最多 12 行）：
+  - `[motrix] query burst: N reads in flight before <channel>`（发起时已有 ≥5 条在飞）
+  - `[motrix] slow query <channel> <ms>`（单条读 ≥3s）
+  - 目的：下一轮真机日志直接判定"连接池饱和"与"哪条查询慢"，不再靠猜
+- 单元测试：`use-engine-display-status.test.tsx` 8 项全部通过（改了 2 项断言，
+  新增 1 项"读失败不回退已确认状态"）；相关 dashboard/downloads 70 项测试全通过
+- 关于页徽章：`HarmonyOS Port r45`
+
 ## r44 · 回到 r38 基线上的 A+C 小批（2026-11-26 15:05）
 
 在 r38 的稳定基线上，只加"不改任何网络/状态行为"的改动：
