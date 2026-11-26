@@ -3,9 +3,16 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r42 · 关于页"开机自启"提示 + 日志收集脚本
+
+- 关于页在 HarmonyOS 下多一行提示：**「开机自启：HarmonyOS 不允许三方应用自行设置，请在设置→应用启动管理里允许 Motrix」**
+  （鸿蒙只给 `autoStartupManager` 查询能力，见 `docs/RUNTIME.md`；之前用户无处得知）
+- 新增 `scripts/gather-logs.sh`：在用户系统终端一条命令把 6 个诊断文件拉到本地 `logs/`
+- 文案走 i18n（en-US / zh-CN），其它语言 fallback 英文
+
 ## r41 · 关于页"移植轮次"徽章 + 启动时间线
 
-- 关于页版本号旁新增 **`HarmonyOS Port r41`** 徽章：原生壳注入 `__MOTRIX_PLATFORM__.portVersion`，
+- 关于页版本号旁新增 **`HarmonyOS Port rNN`**（当前轮次为 r42） 徽章：原生壳注入 `__MOTRIX_PLATFORM__.portVersion`，
   用户一眼能确认装的是哪一版移植（也方便排查"装的是不是最新包"）
 - `boot-stage.json` 从"只记最后一步"改为记录**完整阶段时间线**（`stages[]`，含每步相对启动的 deltaMs），
   冷启动优化时可以直接看每一步耗时

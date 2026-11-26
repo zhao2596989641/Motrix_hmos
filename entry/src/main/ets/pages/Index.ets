@@ -163,7 +163,7 @@ struct Index {
   state.language = ${JSON.stringify(language)};
   state.colorMode = ${JSON.stringify(colorMode)};
   // 移植轮次：渲染层"关于"页用它显示 HarmonyOS Port 徽章（也方便用户分辨装的是哪版）
-  state.portVersion = 'r41';
+  state.portVersion = 'r42';
   var pool = [];
   var originalMatchMedia = window.matchMedia ? window.matchMedia.bind(window) : null;
   function isColorScheme(query) { return String(query).indexOf('prefers-color-scheme') >= 0; }

@@ -107,6 +107,11 @@ export function AboutDialog({
               <p className="mt-1 max-w-md text-xs leading-[1.45] text-muted-foreground">
                 {t('settings.about.tagline')}
               </p>
+              {isHarmonyShell() && (
+                <p className="mt-2 max-w-md rounded-md bg-muted/60 px-3 py-2 text-xs leading-[1.5] text-muted-foreground">
+                  {t('settings.about.harmonyAutostartHint')}
+                </p>
+              )}
               <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
                 <span>
                   {t('settings.about.details.createdBy')}{' '}
