@@ -120,4 +120,19 @@ $HDC shell hilog -T MOTRIX-SHIM,MOTRIX-NODELIVE,MOTRIX-HOST,MOTRIX-WEB -x
 | `XML` 符号缺失 / `Error loading shared library libxml2.so.16` | brew 的 `ohos-sdk` lld 坏了 | 一律用 CLT 的 clang/lld |
 | cargo 编一半 `Operation not permitted` 执行 build script | build-script 是未签名 ELF | `RUSTC_WRAPPER=scripts/toolchain/rustc-sign-wrapper.sh` |
 | cargo `dlopen failed: libserde_derive-*.so: Permission denied` | proc-macro 产物同样要签名 | 同上（wrapper 现在也签 `.so`） |
-| `00303074 bundleName ... does not match SigningConfigs` | 用了别人的 p7b | 在 DevEco 重新自动签名 |
+| `00303074 bundleName ... does not match SigningConfigs` | 用了别人的 p7b | 在 DevEco 重新自动签名 || 签名过的 ELF 无法再被 `cp` 覆盖（`Operation not permitted`） | 被 `binary-sign-tool`/`mv` 换入的文件进入"封存态" | 先 `rm -f` 再 `cp` 到临时名、`mv` 到位（`build-hap.sh` 已是这种写法） |
+| `tsc --noEmit` 报 `@typescript/typescript-openharmony-arm64` 缺失 | TS7 是 Go 原生编译器，本机 `process.platform=openharmony`；即使伪装成 linux 并自签名，运行期仍 `SIGSYS`（系统调用被拦） | 端侧**无法**跑原生 `tsc`：用 `vitest run` + 构建产物验证代替；CLT 自带的 TS 4.9 与工程配置不兼容，不要用 |
+| `biome format` 报无 openharmony 预编译包 | Biome 只有主流三平台二进制 | 手工按 80 列排版，或等 Biome 支持 |
+
+## 5. 推送到远端（本机）
+
+沙箱的 `HOME` 不是用户主目录，`ssh` 默认去 `$HOME/.ssh` 找不到密钥，会报
+`git@github.com: Permission denied (publickey)`。
+
+```sh
+cd codes/MotrixOHOS
+GIT_SSH_COMMAND='ssh -i /storage/Users/currentUser/.ssh/id_ed25519 \
+  -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new' git push origin main
+```
+
+若仍失败：先确认代理/梯子已关闭（fake-IP 会把 22 端口劫持成不可达）。
