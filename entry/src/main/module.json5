@@ -22,7 +22,8 @@
     // 两边数量对不上就是 `9568393 verify code signature failed`。
     "executableBinaryPaths": [
       { "path": "libs/arm64-v8a/aria2c.bin" },
-      { "path": "libs/arm64-v8a/motrix-finalize-fs.bin" }
+      { "path": "libs/arm64-v8a/motrix-finalize-fs.bin" },
+      { "path": "libs/arm64-v8a/ffmpeg.bin" }
     ],
     "pages": "$profile:main_pages",
     "requestPermissions": [

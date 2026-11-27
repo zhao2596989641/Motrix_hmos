@@ -3,6 +3,23 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r64 · FFmpeg 适配：随包最小构建（2026-11-27）
+
+> 上游托管安装只支持 darwin/linux/win32，鸿蒙恒 `unsupported`；brew 方案要拉 15 个依赖。
+> 因此自建最小 ffmpeg 随包，4.3 MB，LGPL-2.1+。
+
+- 用 CLT clang（aarch64-linux-ohos）从 ffmpeg 7.1 源码构建，`--disable-everything` +
+  按需开启 mov/matroska/mpegts/flv 等 demuxer、mp4/matroska 等 muxer、
+  h264/hevc/aac 的 annexb BSF（`-c copy` 合并的关键）、aac/flac/pcm 编码器；
+- 关键 trick：configure 会**运行**它刚编出的探测程序，鸿蒙拒绝执行未签名 ELF ⇒ 写了
+  cc 包装器，链接后剥 `.codesign` 占位段并自签，configure 才能跑通；
+- 打包复用 aria2c 的官方 hap-bin 通道：`build/bin/ffmpeg`（应用证书签名）→
+  `entry/libs/arm64-v8a/ffmpeg.bin` → `module.json5.executableBinaryPaths`；
+- 宿主 `resolveBundledExecutable('ffmpeg')` 并注入 `MOTRIX_FFMPEG_PATH`，
+  core 的 env 探测层直接判为 active（不走 GitHub 下载/验签）；
+- 本机实测：`ffmpeg -i` 探测 m4a 正常、`-c copy` 重封装 m4a 成功（5.13e3×）。
+- 版本 `2.4.5.64` / `240500064`；徽章 `HarmonyOS Port r64`。
+
 ## r63 · CLI 直接安装打通 + core 层收拢（2026-11-27）
 
 > r62 真机：`CUSTOM_SANDBOX` 把进程从 `u:r:debug_hap:s0` 换到 `u:r:develop_tools_debug_hap:s0`，

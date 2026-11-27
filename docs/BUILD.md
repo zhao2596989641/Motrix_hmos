@@ -174,3 +174,14 @@ node scripts/patch-module-permissions.mjs disable all
 
 `READ_WRITE_USER_FILE` 的 ACL 已于 2026-11-27 通过 DevEco 自动签名下发；
 `cli-probe.json` 的 `userFile` 段应显示 `readable:true`。若换机/换签名 profile 需重新确认。
+
+## 7. 随包 FFmpeg（r64）
+
+- 上游托管安装只支持 darwin/linux/win32，鸿蒙恒 `unsupported`；brew 方案要拉 15 个依赖。
+- 改为**自建最小构建**随包：`sh scripts/build-ffmpeg.sh`（约 3 分钟，需联网下源码）
+  → 产出 `build/bin/ffmpeg`（ffmpeg 7.1，LGPL-2.1+，约 4.3 MB，只开 remux/probe 相关功能）。
+- `build-hap.sh` 会用**应用证书**重签它并复制成 `entry/libs/arm64-v8a/ffmpeg.bin`，
+  由 `module.json5` 的 `executableBinaryPaths` 声明；安装后位于 `<bundle>/libs/arm64/`。
+- 宿主启动时 `resolveBundledExecutable("ffmpeg")` 找到它并注入 `MOTRIX_FFMPEG_PATH`，
+  core 的 ffmpeg 探测层（manual → userData → **env** → path）直接判为 active。
+- 已知限制：没有 x264 / lame 等外部编码器（转码 H.264、导出 MP3 不可用），也没有网络协议。

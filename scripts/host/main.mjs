@@ -232,6 +232,12 @@ const explicitFinalize = env.MOTRIX_FINALIZE_FS_BIN && existsQuiet(env.MOTRIX_FI
 const aria2Binary = explicitAria2 || libsAria2 || materializeExecutable('aria2c')
 const finalizeFsBinary = explicitFinalize || libsFinalize || materializeExecutable('motrix-finalize-fs')
 
+// r64：随包最小 ffmpeg（7.1，LGPL；remux/probe 为主）。上游托管安装只支持
+// darwin/linux/win32，鸿蒙这边随包提供一份，用 MOTRIX_FFMPEG_PATH 让 core 的 env
+// 探测层直接命中（不走 GitHub 下载与签名清单校验）。
+const libsFfmpeg = resolveBundledExecutable('ffmpeg')
+if (libsFfmpeg) log(`libs 可执行：ffmpeg     = ${libsFfmpeg}`)
+
 // ── 浏览器扩展：固定 MDXP 桥端口 ──────────────────────────────────────────────
 //
 // 上游 MDXP 桥（浏览器扩展的 WebSocket 服务）默认端口 16801；端口 0 会随机取，
@@ -294,6 +300,8 @@ const defaults = {
   // r63：CUSTOM_SANDBOX 让应用进入 develop_tools_debug_hap 域，可 exec 用户 brew/node，
   // 于是集成卡片改走完整的 CliToolService（检测 + 直接安装）。
   MOTRIX_CLI_DETECT: "1",
+  // r64：随包 ffmpeg（存在才注入；否则 core 退回其它探测层）
+  ...(libsFfmpeg ? { MOTRIX_FFMPEG_PATH: libsFfmpeg } : {}),
   MOTRIX_USER_HOME: USER_HOME,
   MOTRIX_CLI_BREW_PREFIX: path.join(USER_HOME, ".harmonybrew"),
   // r57：让配对码显示在 Web UI（r56 及以前 operatorDelivery=local，配对请求事件会被服务端

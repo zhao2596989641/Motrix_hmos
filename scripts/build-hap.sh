@@ -72,7 +72,8 @@ BUNDLE_APP="$ROOT/entry/src/main/resources/resfile/app"
 # 端侧执行的是 4b 拷进 entry/libs 的同一个签名后字节。
 sh "$HERE/sign-elf-appcert.sh" \
   "$ROOT/build/bin/aria2c" \
-  "$ROOT/build/bin/motrix-finalize-fs"
+  "$ROOT/build/bin/motrix-finalize-fs" \
+  "$ROOT/build/bin/ffmpeg"
 echo "（缺哪个会显示 skip，不影响其余）"
 
 FLAT_SQLITE="$ROOT/entry/libs/arm64-v8a/libbetter_sqlite3.so"
@@ -95,7 +96,7 @@ mkdir -p "$LIBS_ABI"
 #   这些文件不会进入 HAP 签名块的 NativeLibSignInfo；而 installd 的
 #   GetNativeLibraryFileNames 会枚举 libs/{abi}/ 下全部文件 ⇒ 签名映射数量
 #   对不上，安装时报 9568393。带 .bin 后缀后两边一致（实测见 share/ 报告）。
-for pair in "aria2c:aria2c.bin" "motrix-finalize-fs:motrix-finalize-fs.bin"; do
+for pair in "aria2c:aria2c.bin" "motrix-finalize-fs:motrix-finalize-fs.bin" "ffmpeg:ffmpeg.bin"; do
   name=${pair%%:*}
   staged=${pair#*:}
   src="$ROOT/build/bin/$name"
