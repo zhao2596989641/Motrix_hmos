@@ -1035,7 +1035,8 @@ struct Index {
       // Web 组件从第一帧就以 about:blank 预热（见 build()），这里显式导航到真实 UI。
       this.appLoadRequested = true;
       this.controller.loadUrl(this.launchUrl);
-      this.startReadyPoll();
+      // 注意：轮询必须等 onPageEnd 之后才开始 —— 刚 loadUrl 时 runJavaScript 可能还打在
+      // 预热页 about:blank 上（没有 mtx-booting），会被误判成“已挂载”。
       this.armLoadWatchdog();
     } catch (error) {
       const err = error as Error;
@@ -1180,6 +1181,7 @@ struct Index {
             // r56：主文档到了还不够——渲染层（React）还要 ~1s 才挂载。
             // 开屏遮罩留到 webMounted 再撤，避免中途露出网页自带的字标 loading。
             this.webPageLoaded = true;
+            this.startReadyPoll();
             this.maybeBecomeReady();
           })
           .onErrorReceive((event) => {

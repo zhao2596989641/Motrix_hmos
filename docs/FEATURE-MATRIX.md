@@ -3,8 +3,8 @@
 > **最新快照：r56（2026-11-27）** —— 下面的 0 节是当前总览；第 2 节起是 r31 时期的逐项明细，
 > 状态标记已按后续轮次补注（r32~r56 的改动见 [CHANGELOG](CHANGELOG.md)，计划与日志见 [PLAN](PLAN.md)）。
 
-- 当前产物：`com.lyldeer.motrix-2.4.5.56-debug-signed-r56.hap`，192,277,282 B，
-  MD5 `e35d2246d1a536142fce03540871aebc`（待真机验证）
+- 当前产物：`com.lyldeer.motrix-2.4.5.56-debug-signed-r56.hap`，192,277,279 B，
+  MD5 `c00401ce131a33ec82340ccc6915a639`（待真机验证）
 - 依据：r20~r56 测试计划、`logs/` 真机日志、上游 2.4.5 源码对照清点
 
 ---
