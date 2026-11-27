@@ -1,22 +1,22 @@
 # 功能矩阵（移植范围与逐项状态）
 
-> **最新快照：r54（2026-11-26）** —— 下面的 0 节是当前总览；第 2 节起是 r31 时期的逐项明细，
-> 状态标记已按后续轮次补注（r32~r54 的改动见 [CHANGELOG](CHANGELOG.md)，计划与日志见 [PLAN](PLAN.md)）。
+> **最新快照：r55（2026-11-27）** —— 下面的 0 节是当前总览；第 2 节起是 r31 时期的逐项明细，
+> 状态标记已按后续轮次补注（r32~r55 的改动见 [CHANGELOG](CHANGELOG.md)，计划与日志见 [PLAN](PLAN.md)）。
 
-- 当前产物：`com.lyldeer.motrix-2.4.5.54-debug-signed-r54.hap`，192,051,591 B，
-  MD5 `67d514d506b55b0f0521a924d9687f0e`（待真机验证）
-- 依据：r20~r54 测试计划、`logs/` 真机日志、上游 2.4.5 源码对照清点
+- 当前产物：`com.lyldeer.motrix-2.4.5.55-debug-signed-r55.hap`，192,059,784 B，
+  MD5 `798ad87e51c1e2cb221bae2243cc4442`（待真机验证）
+- 依据：r20~r55 测试计划、`logs/` 真机日志、上游 2.4.5 源码对照清点
 
 ---
 
-## 0. r54 总览
+## 0. r55 总览
 
 | 状态 | 数量级 | 内容 |
 |---|---|---|
 | ✅ 已真机验证 | 核心链路 | HTTP 下载、暂停/续传/删除（含文件）、任务与设置持久化、后台下载、引擎就绪、系统通知、中英文/深浅色、沉浸式标题栏 + 三键避让、窗口记忆、托盘（图标/左键面板/右键菜单/关窗收托盘）、Dock 进度条、深链（magnet / .torrent） |
 | 🟢 已实现待点验 | 十余项 | 限速档位、任务详情、批量操作、创建种子、Tracker、代理、GeoIP、单实例、reveal/open/外链、NAT 显示 |
 | 🟡 受限 | 6 项 | BT 真实入站（网络策略）、中文 IME、剪贴板、拖 `.torrent` 入窗、UPnP/NAT、Dock 跳转列表（未做） |
-| ⛔ 平台不可用 | 6 项 | 媒体 HLS/DASH、浏览器扩展/CLI 配对、应用内更新（r54 起整块隐藏）、完成后关机（唯一隐藏菜单入口）、开机自启（系统只给查询；r54 起改为跳转系统设置）、v1 迁移 |
+| ⛔ 平台不可用 | 5 项 | 媒体 HLS/DASH、CLI 配对（`@motrix/cli`，待 r56 探测）、应用内更新（r54 起整块隐藏）、完成后关机（唯一隐藏菜单入口）、v1 迁移 |
 
 ---
 
@@ -67,7 +67,7 @@ r33~r35 又把「托盘面板改成 Clash 风格（玻璃 + 网速图 + 任务�
 | A15 | Tracker：内置列表 / 同步 / 可用性检查 | 🟢 | server `trackerManager.syncAndCurate()` 在；需网络，P1 点验 |
 | A16 | DHT / 监听端口 / UPnP-NAT-PMP 端口映射 | 🟡 | DHT 与端口由 aria2 自己负责；**UPnP/NAT-PMP 是 Electron 主进程专属**（server 的 `GetNatStatus` 恒 `null`），端侧要么靠 aria2 编译特性、要么放弃。P1 实测端口可达性 |
 | A17 | GeoIP（BT 对等节点归属地） | 🟢 | server `GeoIPManager` 在，需下载库（网络）；P1 点验 |
-| A18 | 媒体解析 HLS/DASH + ffmpeg 合流 | ⛔ | 属 **桥接接收通道**（`bridge-receiver`，浏览器扩展交接），端侧 `MOTRIX_MDXP_PORT=0` 已关；ffmpeg 也未随包。不做 |
+| A18 | 媒体解析 HLS/DASH + ffmpeg 合流 | ⛔ | 属 **桥接接收通道**（`bridge-receiver`，浏览器扩展交接）。r55 已把 MDXP 桥开在回环固定端口，但 ffmpeg 仍未随包 ⇒ 合流仍不可用。暂不做 |
 | A19 | 下载完成后关机/睡眠 | ⛔ | Electron 主进程专属（`src/main/platform/completion-shutdown.ts`）；web UI 会显示「不可用」，建议隐藏该项 |
 
 ---
@@ -111,14 +111,14 @@ r33~r35 又把「托盘面板改成 Clash 风格（玻璃 + 网速图 + 任务�
 |---|---|---|---|
 | C1 | 设置 8 卡片（通用/外观/下载/BT/集成/网络/高级/关于） | 🟢 | 页面在、r28 后避让正常；逐项点验归 P1 |
 | C2 | 代理设置（HTTP/SOCKS/系统代理检测） | 🟢 | server 侧 `parseProxyEnvironment` + aria2 参数；P1 点验 |
-| C3 | 集成卡片（浏览器扩展/CLI/AppImage/媒体工具/系统协议） | 🟡 | 端侧约 80% 不可用（扩展通道已关、无 ffmpeg、无协议关联），界面会看到多条「不可用」。**建议按 OHOS 收敛**：隐藏扩展/CLI/AppImage，保留并在未来接「系统协议」 |
+| C3 | 集成卡片（浏览器扩展/CLI/AppImage/媒体工具/系统协议） | 🟢 | **r55**：扩展区块已可用（MDXP 桥固定端口 + 鸿蒙连接提示，待真机）；AppImage/系统协议仍由 `isWeb` 隐藏；CLI 等 `cli-probe.json`；FFmpeg 暂缓 |
 | C4 | 检查更新 | ⛔ | **r54**：关于页更新区域 + 自动检查开关在鸿蒙壳整块隐藏，也不再查询更新状态 |
 | C5 | 关于页（版本/许可证/链接） | 🟢 | P1 点验 |
 | C6 | 插件系统 / 插件市场 | ⛔ | QuickJS 需 WASM，`--jitless` 下 `WebAssembly===undefined`，插件无法运行；但侧栏入口与页面仍在，**建议收起或标注不可用**（否则点了像"坏了"） |
 | C7 | URL Resolver 类插件媒体页解析 | ⛔ | 依赖插件系统，同上 |
 | C8 | v1 数据迁移（legacy import） | ⛔ | Electron 专属（读 v1 配置目录/原位激活），端侧无意义；入口应收起 |
 | C9 | NAS / Synology 设置卡 | ⛔ | 仅 `synologyDsm` 模式出现，端侧不会显示 |
-| C10 | 浏览器扩展 / `@motrix/cli` 配对（MDXP） | ⛔ | 端侧已主动关闭（`MOTRIX_MDXP_PORT=0`）；如将来要远程控制，另起局域网方案 |
+| C10 | 浏览器扩展 / `@motrix/cli` 配对（MDXP） | 🟢 | **r55**：扩展通道打通——宿主固定 `16801…16806` 空闲端口 + `MOTRIX_REMOTE_EXTENSION_ENABLED=1` + `ws://127.0.0.1:<port>`；扩展用“远程服务器”模式 + 8 位配对码。CLI 待 r56 |
 
 ---
 
