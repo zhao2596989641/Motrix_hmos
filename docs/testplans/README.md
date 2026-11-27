@@ -6,7 +6,8 @@
 
 | 轮次 | HAP 体积 | MD5 | 结果 | 说明 |
 |---|---|---|---|---|
-| [r60](r60.md) | 192,276,843 B | `af55251c5b18eb1db8e4090e4606ffbd` | ⏳ 待真机验证 | 定论：读真实文件 OK / symlink 与 exec 被平台挡 → 补「写」与 shell 路径探针 + 已安装包全量枚举 |
+| [r61](r61.md) | 192,280,941 B | `1c63e15125741d08d696fae171dfb180` | ⏳ 待真机验证 | 命令行工具真实检测（只读）+ BitFun 机制对照；r60 结论：能读能写不能执行 |
+| [r60](r60.md) | 192,276,843 B | `af55251c5b18eb1db8e4090e4606ffbd` | ✅ 结论：能读、**能写** ~/.harmonybrew/bin、不能 exec；已安装包可全量枚举 | 定论：读真实文件 OK / symlink 与 exec 被平台挡 → 补「写」与 shell 路径探针 + 已安装包全量枚举 |
 | [r59](r59.md) | 192,276,843 B | `2282bcaa757d05929809bfee43cb221c` | ✅ 结论：真实文件可读（brew/node/.npmrc），symlink 与 exec 被平台策略拦（r60 补写探测） | ACL 已生效（目录可读/文件 EACCES）→ 深层探针：lstat/realpath/open/group/真实路径 spawn |
 | [r58](r58.md) | 192,272,711 B | `18dc808020a17e36067bfb6678fd1585` | ⚠️ 真机：ACL 生效但 symlink 文件 EACCES（r59 深挖） | 继承 r57 修复 + `READ_WRITE_USER_FILE` 权限探针（cli-probe.userFile） |
 | [r57](r57.md) | 192,272,711 B | `ca5c046478e1e0b9d6170f306aaf3922` | ⏳ 待真机验证 | 开屏改为「系统 logo → m·o 字标」并去掉 12s 等待；配对码改成 Web UI 显示 |

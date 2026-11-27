@@ -3,6 +3,21 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r61 · 命令行工具真实检测 + BitFun 机制对照（2026-11-27）
+
+> r60 真机结论：能读用户目录真实文件、**能写 `~/.harmonybrew/bin`**、不能 exec 用户二进制。
+
+- 新增 `src/server/cli-tool-detect.ts`（只读）：走真实路径读 `@motrix/cli` 的
+  `package.json`（版本 + bin 入口），并统计 `Cellar` formula 数与全局 npm 包数；
+- `Queries.GetCliToolStatus` 在宿主注入 `MOTRIX_CLI_NPM_PREFIX` 时返回真实状态：
+  已安装 → `installed` + 版本 + 入口；未安装 → `manual-only` + 可复制的 npm 命令 + 端侧限制说明；
+- 宿主注入 `MOTRIX_CLI_NPM_PREFIX` / `MOTRIX_CLI_BREW_PREFIX`（均指 `~/.harmonybrew`）；
+- **BitFun 对照**（读源码）：它 `which` + 读 `.zshrc` 反推 brew 前缀做检测，
+  **真的 spawn** `~/.harmonybrew/bin/brew` 与 `bin/node npm-cli.js install -g` 做安装，
+  并额外声明 `CUSTOM_SANDBOX`（动态沙箱）。我们卡在 ELF 签名（自签 → EPERM）与 symlink 沙箱策略，
+  所以先做"检测 + 手动安装命令"；应用内安装只能走"自己下载 npm tarball 解包"这条纯文件路线。
+- 版本 `2.4.5.61` / `240500061`；徽章 `HarmonyOS Port r61`。
+
 ## r60 · CLI 集成可行性定论 + 写/枚举探针（2026-11-27）
 
 > r59 日志证明：`READ_WRITE_USER_FILE` 生效，但 symlink 与 exec 是两条独立的平台策略。

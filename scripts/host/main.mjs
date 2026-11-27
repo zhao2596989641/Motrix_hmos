@@ -288,6 +288,10 @@ const defaults = {
   MOTRIX_MDXP_HOST: '127.0.0.1',
   MOTRIX_REMOTE_EXTENSION_ENABLED: '1',
   MOTRIX_REMOTE_EXTENSION_PUBLIC_URL: `ws://127.0.0.1:${bridgePort}`,
+  // r61：集成卡片「命令行工具」的真实检测（只读）。端侧不能 exec 用户的 brew/npm，
+  // 所以检测走 lib/node_modules 真实路径 + Cellar 枚举，安装交给用户在终端执行。
+  MOTRIX_CLI_NPM_PREFIX: path.join(USER_HOME, ".harmonybrew"),
+  MOTRIX_CLI_BREW_PREFIX: path.join(USER_HOME, ".harmonybrew"),
   // r57：让配对码显示在 Web UI（r56 及以前 operatorDelivery=local，配对请求事件会被服务端
   // 直接丢弃，表现为“扩展点配对但 Motrix 毫无反应”）。本地回环用 HTTP 是安全的，
   // 需要显式允许 insecure operator HTTP；公网仍然只认 HTTPS。
