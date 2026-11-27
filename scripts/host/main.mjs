@@ -241,7 +241,10 @@ const finalizeFsBinary = explicitFinalize || libsFinalize || materializeExecutab
 //
 // 为什么不用 16802~16806：那是上游"本机 App 发现"的候选段；我们走的是
 // **远程 Server 模式**（扩展里手动添加地址），16801 是上游默认，被占时顺延。
-const BRIDGE_PORT_CANDIDATES = [16801, 16802, 16803, 16804, 16805, 16806]
+// r56：**必须避开 16800~16820** —— 那是 aria2 RPC 的默认端口 + 顺延段。
+// r55 用 16801..16806，真机上 16801 被占后选中 16802，随后引擎也顺延到 16802，
+// 桥 listen EADDRINUSE ⇒ 集成卡片显示“扩展通道还没启动”。
+const BRIDGE_PORT_CANDIDATES = [17891, 17892, 17893, 17894, 17895, 17896]
 const USER_HOME = env.MOTRIX_USER_HOME || '/storage/Users/currentUser'
 
 function canListen(port) {
@@ -673,13 +676,14 @@ writeStage('env_ready', { appRoot, dataDir, saveDir: env.MOTRIX_DEFAULT_SAVE_DIR
 // 真机没有 DevEco 时，这份 `<SANDBOX_HOME>/spawn-probe.json` 就是判据：
 //   · domain 决定"允许 exec 哪类文件"（debug_hap ≠ develop_tools_debug_hap）；
 //   · 哪一条 ok、哪一条 EPERM/EACCES，一眼就能区分"路径域 / HNP 没装 / 文件模式"。
-function spawnProbe(label, command, args) {
+function spawnProbe(label, command, args, extraEnv) {
   const started = Date.now()
   try {
     const result = spawnSync(command, args, {
       timeout: 3000,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
+      ...(extraEnv ? { env: { ...process.env, ...extraEnv } } : {}),
     })
     return {
       label,
@@ -761,6 +765,12 @@ function runCliEnvironmentProbe() {
   const brewNode = path.join(brewPrefix, "bin", "node")
   const brewNpmCli = path.join(brewPrefix, "lib", "node_modules", "npm", "bin", "npm-cli.js")
   const sh = "/bin/sh"
+  // BitFun 的做法：spawn brew/node 时把 HOME/PATH/HOMEBREW_PREFIX 全部指到用户目录
+  const brewEnv = {
+    HOME: USER_HOME,
+    HOMEBREW_PREFIX: brewPrefix,
+    PATH: `${path.join(brewPrefix, "bin")}:/system/bin`,
+  }
   const report = {
     at: Date.now(),
     userHome: USER_HOME,
@@ -775,10 +785,12 @@ function runCliEnvironmentProbe() {
     },
     spawn: {
       shEcho: spawnProbe("sh-echo", sh, ["-c", "printf ok"]),
+      zshEcho: spawnProbe("zsh-echo", "/usr/bin/zsh", ["-c", "printf ok"]),
       shWhich: spawnProbe("sh-which", sh, ["-c", "command -v node; command -v npm; command -v brew"]),
-      brewNodeVersion: spawnProbe("brew-node", brewNode, ["-v"]),
-      brewVersion: spawnProbe("brew-version", brewBin, ["--version"]),
-      brewNpmVersion: spawnProbe("brew-npm", brewNode, [brewNpmCli, "--version"]),
+      brewNodeVersion: spawnProbe("brew-node", brewNode, ["-v"], brewEnv),
+      brewVersion: spawnProbe("brew-version", brewBin, ["--version"], brewEnv),
+      brewNpmVersion: spawnProbe("brew-npm", brewNode, [brewNpmCli, "--version"], brewEnv),
+      brewViaSh: spawnProbe("brew-via-sh", sh, ["-c", `"${brewBin}" --version`], brewEnv),
     },
   }
   try {
@@ -787,7 +799,11 @@ function runCliEnvironmentProbe() {
   const ok = Object.entries(report.spawn)
     .filter(([, probe]) => probe.ok)
     .map(([name]) => name)
+  const failed = Object.entries(report.spawn)
+    .filter(([, probe]) => !probe.ok)
+    .map(([name, probe]) => `${name}=${probe.error || `status=${probe.status}`}`)
   log(`cli-probe spawn ok: ${ok.length ? ok.join(",") : "(none)"}`)
+  log(`cli-probe spawn failed: ${failed.length ? failed.join(",") : "(none)"}`)
 }
 
 // 【r48 冷启动】启动期自检（spawn-probe.json）纯诊断、不参与任何判据，

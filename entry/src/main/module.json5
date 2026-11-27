@@ -85,7 +85,10 @@
         "description": "$string:EntryAbility_desc",
         "icon": "$media:layered_image",
         "label": "$string:EntryAbility_label",
-        "startWindowIcon": "$media:startIcon",
+        // r56：增强启动页（整窗背景图，logo 已在图里），与 ArkUI 开屏页用同一张图 ⇒ 无大小跳变。
+        // startWindowIcon / startWindowBackground 保留作为旧系统兜底（配置 startWindow 后系统忽略）。
+        "startWindow": "$profile:start_window",
+        "startWindowIcon": "$media:start_window_icon",
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
         // 单实例：桌面图标连点不会开出多个窗口（实例 key 由 AbilityStage 决定）
@@ -128,7 +131,7 @@
         "description": "$string:BackGroundAbility_desc",
         "icon": "$media:layered_image",
         "label": "$string:EntryAbility_label",
-        "startWindowIcon": "$media:startIcon",
+        "startWindowIcon": "$media:start_window_icon",
         "startWindowBackground": "$color:start_window_background",
         "exported": true
       }

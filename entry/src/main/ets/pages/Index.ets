@@ -97,6 +97,16 @@ struct Index {
   @State launchUrl: string = '';
   @State logTail: string = '';
 
+  /** 主文档是否已 onPageEnd（只代表 HTML 到了，不代表 React 挂载完） */
+  private webPageLoaded: boolean = false;
+  /** 渲染层是否已真正挂载（注入脚本的 html.mtx-booting 被移除） */
+  private webMounted: boolean = false;
+  /** "等渲染层挂载"的轮询定时器（-1 = 没在跑） */
+  private readyPollTimer: number = -1;
+  private readyPollCount: number = 0;
+  private static readonly READY_POLL_INTERVAL_MS: number = 120;
+  private static readonly READY_POLL_MAX: number = 100;
+
   aboutToAppear(): void {
     const context = getContext(this) as common.UIAbilityContext;
     this.filesDir = context.filesDir;
@@ -184,7 +194,7 @@ struct Index {
   state.language = ${JSON.stringify(language)};
   state.colorMode = ${JSON.stringify(colorMode)};
   // 移植轮次：关于页用它显示 "HarmonyOS Port rNN" 徽章
-  state.portVersion = 'r55';
+  state.portVersion = 'r56';
   // 开机自启状态：'enabled' | 'disabled' | 'unsupported' | 'unknown'
   // 设置页据此显示「已开启 / 未开启 / 设备不支持」+ 跳转系统设置的按钮。
   state.autoStartup = ${JSON.stringify(autoStartup)};
@@ -290,7 +300,11 @@ struct Index {
       if (!document.getElementById('mtx-boot-guard')) {
         bootGuardStyle = document.createElement('style');
         bootGuardStyle.id = 'mtx-boot-guard';
-        bootGuardStyle.textContent = 'html.mtx-booting #root{visibility:hidden !important}';
+        // r56：网页自带的 #renderer-boot（m→o 字标 + shimmer）在鸿蒙壳里永远不显示——
+        // 开屏由原生遮罩负责，渲染层挂载前遮罩不撤（见 pollRendererMounted）。
+        bootGuardStyle.textContent =
+          'html.mtx-booting #root{visibility:hidden !important}' +
+          '#renderer-boot{display:none !important}';
         (document.head || document.documentElement).appendChild(bootGuardStyle);
       }
       document.documentElement.classList.add('mtx-booting');
@@ -875,6 +889,82 @@ struct Index {
     }
   }
 
+  /**
+   * r56：等"渲染层真正挂载"再撤开屏遮罩。
+   *
+   * 为什么不能只看 onPageEnd：主文档加载完（onPageEnd）时 React 还没挂载，
+   * 页面自带的 `#renderer-boot`（m→o 字标 + shimmer）会露出来，用户看到
+   * "系统大 logo → ArkUI 小 logo → 网页字标" 三段跳。
+   *
+   * 判据：注入脚本在 document start 给 `<html>` 加了 `mtx-booting`，
+   * 渲染层挂载完成后（两次 rAF）才移除。这里每 120ms 问一次这个 class；
+   * 移除即视为已挂载；最多问 12s，超时兜底放行，避免永远停在开屏页。
+   */
+  private startReadyPoll(): void {
+    this.stopReadyPoll();
+    this.readyPollCount = 0;
+    this.pollRendererMounted();
+  }
+
+  private stopReadyPoll(): void {
+    if (this.readyPollTimer >= 0) {
+      clearTimeout(this.readyPollTimer);
+      this.readyPollTimer = -1;
+    }
+  }
+
+  private pollRendererMounted(): void {
+    if (this.phase !== Phase.LOADING) {
+      return;
+    }
+    this.readyPollCount += 1;
+    const script = `document.documentElement.classList.contains('mtx-booting') ? '0' : '1'`;
+    try {
+      this.controller.runJavaScript(script, (error: BusinessError, result: string) => {
+        if (this.phase !== Phase.LOADING) {
+          return;
+        }
+        if (!error && result === '1') {
+          this.webMounted = true;
+          this.appendDiag(`renderer mounted (poll #${this.readyPollCount})`);
+          this.maybeBecomeReady();
+          return;
+        }
+        if (this.readyPollCount >= Index.READY_POLL_MAX) {
+          this.appendDiag(`ready poll timeout after ${this.readyPollCount} tries, force ready`);
+          this.webMounted = true;
+          this.maybeBecomeReady();
+          return;
+        }
+        this.readyPollTimer = setTimeout(() => {
+          this.pollRendererMounted();
+        }, Index.READY_POLL_INTERVAL_MS);
+      });
+    } catch (error) {
+      const err = error as BusinessError;
+      this.appendDiag(`ready poll threw: ${err.message}`);
+      this.webMounted = true;
+      this.maybeBecomeReady();
+    }
+  }
+
+  /** 主文档 + 渲染层都就绪 ⇒ READY（两个条件缺一不可） */
+  private maybeBecomeReady(): void {
+    if (this.phase !== Phase.LOADING) {
+      return;
+    }
+    if (!this.webPageLoaded || !this.webMounted) {
+      return;
+    }
+    this.stopReadyPoll();
+    this.phase = Phase.READY;
+    this.retryCount = 0;
+    this.appendDiag('phase -> READY (page + renderer mounted)');
+    // 启动过程中如果系统外观/自启状态变过，页面这时才具备接收条件，补推一次
+    this.onSystemAppearanceChange();
+    this.onAutoStartupChange();
+  }
+
   /** 超过 LOAD_TIMEOUT_MS 仍在 LOADING ⇒ 主动重新导航（ArkUI 的 src 没变不会自动重载） */
   private armLoadWatchdog(): void {
     setTimeout(() => {
@@ -894,6 +984,7 @@ struct Index {
   aboutToDisappear(): void {
     // 页面销毁不等于退出应用；真正的停止由 EntryAbility 的退出链负责
     this.notificationPoller?.stop();
+    this.stopReadyPoll();
   }
 
   /** 起 Node → 等就绪 → 注入 cookie → 加载 Web */
@@ -930,6 +1021,10 @@ struct Index {
 
       this.phase = Phase.LOADING;
       this.appendDiag('boot: 正在载入界面');
+      // r56：每次导航都重置"渲染层挂载"状态，并开始轮询（见 pollRendererMounted）
+      this.stopReadyPoll();
+      this.webPageLoaded = false;
+      this.webMounted = false;
       // '?locale=' 有两个作用：
       //   1. 渲染层的"健康/恢复"兜底 UI 会读 location.search 的 locale 来决定英文还是中文
       //      （web 模式下它拿不到 session，缺这个参数就恒英文）；
@@ -940,6 +1035,7 @@ struct Index {
       // Web 组件从第一帧就以 about:blank 预热（见 build()），这里显式导航到真实 UI。
       this.appLoadRequested = true;
       this.controller.loadUrl(this.launchUrl);
+      this.startReadyPoll();
       this.armLoadWatchdog();
     } catch (error) {
       const err = error as Error;
@@ -981,6 +1077,10 @@ struct Index {
   private fail(message: string, terminal: boolean = false): void {
     this.errorText = message;
     this.logTail = this.readHostLogTail(8192);
+    // r56：任何失败都停掉"等渲染层挂载"轮询；重试时由 boot() 重新开始
+    this.stopReadyPoll();
+    this.webPageLoaded = false;
+    this.webMounted = false;
     if (!terminal && this.retryCount < Index.AUTO_RETRY_MAX) {
       this.retryCount += 1;
       this.phase = Phase.BOOTING;
@@ -1077,11 +1177,10 @@ struct Index {
             if (!this.appLoadRequested || this.launchUrl.length === 0) {
               return;
             }
-            this.phase = Phase.READY;
-            this.retryCount = 0;
-            // 启动过程中如果系统外观/自启状态变过，页面这时才具备接收条件，补推一次
-            this.onSystemAppearanceChange();
-            this.onAutoStartupChange();
+            // r56：主文档到了还不够——渲染层（React）还要 ~1s 才挂载。
+            // 开屏遮罩留到 webMounted 再撤，避免中途露出网页自带的字标 loading。
+            this.webPageLoaded = true;
+            this.maybeBecomeReady();
           })
           .onErrorReceive((event) => {
             if (!event) {
@@ -1123,8 +1222,8 @@ struct Index {
       }
 
       if (this.phase !== Phase.READY) {
-        Column({ space: 14 }) {
-          if (this.phase === Phase.ERROR) {
+        if (this.phase === Phase.ERROR) {
+          Column({ space: 14 }) {
             Text('Motrix 启动失败').fontSize(20).fontWeight(FontWeight.Medium)
               .fontColor(this.primaryTextColor())
             Text(this.errorText)
@@ -1158,21 +1257,27 @@ struct Index {
               this.appLoadRequested = false;
               this.boot();
             })
-          } else {
-            // 开屏（r54，Clash 风格）：**只展示居中 logo**，不显示加载进度圈与文案。
-            // 理由：加载文案对用户没有信息量（真正等待的只有 Node 启动那 1~2 秒），
-            // 而"转圈 + 一串状态文字"反而显得软件很笨重。失败时仍走上面的错误页。
-            Image($r('app.media.startIcon'))
-              .width(112)
-              .height(112)
+          }
+          .width('100%')
+          .height('100%')
+          .justifyContent(FlexAlign.Center)
+          .backgroundColor(this.panelBackground())
+        } else {
+          // 开屏（r54 Clash 风格，r56 修三段跳）：
+          //   系统增强启动页 + 这个 ArkUI 遮罩都渲染**同一张** splash_background.png，
+          //   尺寸/位置完全一致 ⇒ 冷启动只看到一张图，不会大 logo → 小 logo → 字标。
+          //   遮罩会一直留到"渲染层真正挂载"（而不是主文档 onPageEnd），见 maybeBecomeReady。
+          Stack() {
+            Image($r('app.media.splash_background'))
+              .width('100%')
+              .height('100%')
               .objectFit(ImageFit.Contain)
               .draggable(false)
           }
+          .width('100%')
+          .height('100%')
+          .backgroundColor(this.panelBackground())
         }
-        .width('100%')
-        .height('100%')
-        .justifyContent(FlexAlign.Center)
-        .backgroundColor(this.panelBackground())
       }
     }
     .width('100%')

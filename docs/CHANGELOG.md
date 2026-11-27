@@ -3,6 +3,23 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r56 · 开屏三段跳 / 扩展桥端口 / 托盘面板减高（2026-11-27）
+
+> r55 真机反馈三件事：开屏先大 logo 再小 logo 再 m·o 字标；集成卡片显示"扩展通道还没启动"；
+> 托盘左键面板的下载任务卡太高（没任务时也占一大块）。
+
+- **开屏**：系统启动页改用增强启动页（`startWindow` profile + 整窗背景图），与 ArkUI 遮罩
+  共用 `splash_background.png`（1200×800，logo 已合成，浅/深两套）⇒ ①→② 无跳变；
+  遮罩撤除从 `onPageEnd` 推迟到"React 真正挂载"（轮询 `html.mtx-booting`，12s 兜底），
+  并在鸿蒙壳隐藏网页自带的 `#renderer-boot` 字标。图片由 `scripts/make-splash-assets.mjs` 生成。
+- **扩展桥**：r55 用 16801..16806 选端口，真机上 16801 被占后选中 16802，随后 aria2 引擎
+  也顺延到 16802 ⇒ `EADDRINUSE`，整个 MDXP 桥启动失败。r56 候选改为 `17891..17896`，
+  避开 aria2 RPC 的 16800+20 顺延段。
+- **托盘面板**：`PANEL_HEIGHT` 880 → 740，下载任务列表约缩到原来的 2/3。
+- **CLI 探测**：失败原因写进 `node-output.log`，`gather-logs.sh` 增加 `cli-probe.json`；
+  并补了 `zsh`/带 brew 环境变量的 spawn 探测（对齐 BitFun 的调用方式）。
+- 版本 `2.4.5.56` / `240500056`；徽章 `HarmonyOS Port r56`。
+
 ## r55 · 浏览器扩展通道打通 + CLI 环境探测（2026-11-27）
 
 > 维护者确认华为浏览器 / 海泰浏览器都能装 Chromium 扩展；本轮把端侧的扩展通道真正打开，

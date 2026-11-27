@@ -42,7 +42,7 @@ pull() {
 
 # 沙箱根（ArkTS / 宿主写在这里）
 for name in ability-diag.log arkts-diag.log node-output.log boot-stage.json \
-            spawn-probe.json host-ready.dev.json window-geometry.json; do
+            spawn-probe.json cli-probe.json host-ready.dev.json window-geometry.json; do
   pull "$FILES/$name" "$name" || true
 done
 

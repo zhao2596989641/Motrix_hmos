@@ -34,10 +34,11 @@ export const TRAY_MENU_SHOW = 'tray:show';
 /**
  * 左键面板高度（vp）。
  *
- * 面板内容：标题行 + 传输卡（折线图 + 四项指标）+ 任务概览卡 + 下载任务卡（内部滚动）+ 底部"打开 Motrix"。
- * 880 是"三行任务行 + 三张卡片都不压缩"的折中值（任务列表可内部滚动）；系统若裁切会由内部布局自适应。
+ * 面板内容：传输卡（折线图 + 四项指标）+ 任务概览卡 + 下载任务卡（内部滚动）+ 底部"打开 Motrix"。
+ * r56：880 → 740。维护者反馈"没有任务时下载任务卡还是一整块、显得空"，
+ * 按列表高度的 2/3 缩减面板整体高度（卡片按 layoutWeight 等比压缩，列表仍可内部滚动）。
  */
-const PANEL_HEIGHT = 880;
+const PANEL_HEIGHT = 740;
 
 export class SystemTray {
   private readonly context: common.UIAbilityContext;

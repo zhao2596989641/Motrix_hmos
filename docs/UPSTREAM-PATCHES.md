@@ -39,6 +39,7 @@
 | `src/renderer/routes/settings/cards/about-dialog.tsx` | ～ | 版本旁 `HarmonyOS Port rNN` 徽章（**r54 起与 `2.4.5` 中轴对齐**）；**r54：更新区域 + 自动检查开关在鸿蒙壳整块不渲染**，`useAppUpdate(false)` 不再查询更新状态；r42 的「开机自启提示」段已删除（改到设置→通用，见下） |
 | `src/renderer/routes/settings/cards/general-dialog.tsx` | ～ | **r54**：鸿蒙壳在「启动与退出」里插入 `HarmonyAutostartRow`（状态 + 跳转系统设置按钮），替代上游开关 |
 | `src/renderer/routes/settings/cards/harmony-autostart-row.tsx` | ＋ | **r54 新增**：开机自启行。显示 `__MOTRIX_PLATFORM__.autoStartup`（enabled/disabled/unsupported/unknown）+ 监听 `motrix-platform-change` 刷新；按钮发 `motrix-action://autostart` |
+| `entry/src/main/ets/pages/Index.ets` 开屏/就绪判定 | ～ | **r56**：开屏改用整窗 `splash_background`（与增强启动页同一张图）；READY 判定从 onPageEnd 推迟到“渲染层挂载”（轮询 `html.mtx-booting`，12s 兜底）；注入 CSS 隐藏网页自带 `#renderer-boot` |
 | `src/renderer/routes/settings/cards/integration/harmony-extension-hint.tsx` | ＋ | **r55 新增**：鸿蒙扩展连接提示——显示 `ws://127.0.0.1:<桥端口>`（来自 `useBridgeStatus`）+ 复制 + 三步配对说明；桥未起时提示“通道未启动” |
 | `src/renderer/routes/settings/cards/integration/browser-extensions-section.tsx` | ～ | **r55**：在扩展安装入口下挂 `HarmonyExtensionHint`（非鸿蒙壳自动返回 null，其它平台零变化） |
 | `src/renderer/routes/dashboard/components/dashboard-grid.tsx` | ～ | 仪表板页头 tooltip 朝向改为 `bottom`（默认朝上会顶到窗口三键区域） |
