@@ -61,10 +61,7 @@ import type { GetTaskActivityParams } from '@shared/types/task-activity'
 import { z } from 'zod'
 import type { ServerUpdateService } from '../app-update-service'
 import type { ServerDownloadPathPolicy } from '../download-path-policy'
-import {
-  cliDetectionEnabled,
-  detectCliTool,
-} from '../cli-tool-detect'
+import { cliToolRuntimeEnabled, getCliToolService } from '../cli-tool-runtime'
 import { makeServerFfmpegDetect } from '../plugin/ffmpeg-detect-server'
 import type { ServerDirectoryService } from '../server-directory-service'
 import { unsupportedLegacyImportQueries } from './legacy-import'
@@ -212,40 +209,10 @@ export function buildServerQueryHandlers(
     }),
 
     [Queries.GetCliToolStatus]: async (): Promise<CliToolStatus> => {
-      // r61：鸿蒙宿主注入 MOTRIX_CLI_NPM_PREFIX 时做真实检测（只读，不 exec）
-      if (cliDetectionEnabled()) {
-        const prefix = process.env.MOTRIX_CLI_NPM_PREFIX?.trim() ?? ''
-        const brewPrefix =
-          process.env.MOTRIX_CLI_BREW_PREFIX?.trim() ||
-          path.join(path.dirname(prefix), '.harmonybrew')
-        const detected = detectCliTool({ brewPrefix, npmPrefix: prefix })
-        const managerOptions = UNSUPPORTED_WEB_CLI_STATUS.managerOptions.map(
-          (option) => ({
-            ...option,
-            installCommand: option.installCommand,
-            available: false,
-          })
-        )
-        if (detected.installed) {
-          return {
-            phase: CliToolPhase.Installed,
-            capability: CliInstallCapability.ManualOnly,
-            installCommand: detected.installCommand,
-            packageManager: CliPackageManager.Unknown,
-            managerOptions,
-            version: detected.version,
-            executablePath: detected.entryPath,
-            nodeVersion: null,
-            reason: null,
-            detail: detected.detail,
-          }
-        }
-        return {
-          ...UNSUPPORTED_WEB_CLI_STATUS,
-          installCommand: detected.installCommand,
-          managerOptions,
-          detail: detected.detail,
-        }
+      // r63：CUSTOM_SANDBOX 把应用换到 develop_tools_debug_hap 域后可以 exec 用户
+      // 的 brew/node，因此这里直接复用 core 那套 CliToolService（发现包管理器 + 探测版本）。
+      if (cliToolRuntimeEnabled()) {
+        return getCliToolService().getStatus()
       }
       return UNSUPPORTED_WEB_CLI_STATUS
     },

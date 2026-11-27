@@ -3,6 +3,21 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r63 · CLI 直接安装打通 + core 层收拢（2026-11-27）
+
+> r62 真机：`CUSTOM_SANDBOX` 把进程从 `u:r:debug_hap:s0` 换到 `u:r:develop_tools_debug_hap:s0`，
+> 于是能 exec 用户的 `brew`/`node`、能穿符号链接；数据目录没搬，无需迁移。
+
+- `src/main/cli/*` → **`src/core/cli/*`**（架构边界：server 不得 import main），
+  `src/main/index.ts` / `src/main/ipc/commands.ts` 改用 `@core/cli/…`；
+- 新增 `src/server/cli-tool-runtime.ts`：按用户目录构造 `CliToolService`
+  （HOME/SHELL/PATH/neutralDir，`directInstallSupported: true`）；
+- `Queries.GetCliToolStatus` 改为真实探测；`Commands.InstallCliTool` 真的执行
+  `npm install -g @motrix/cli@latest`（复用 Electron 同一套实现，300s 超时 + 失败原因归类）；
+- 宿主注入 `MOTRIX_CLI_DETECT=1` / `MOTRIX_USER_HOME`；删掉 r61 的只读检测模块；
+- 本机自测：`phase=ready`、`capability=direct`、`nodeVersion=26.12.0`、npm/pnpm 可用。
+- 版本 `2.4.5.63` / `240500063`；徽章 `HarmonyOS Port r63`。
+
 ## r62 · CUSTOM_SANDBOX 已获批 + 动态沙箱/exec 探针（2026-11-27）
 
 > `CUSTOM_SANDBOX` 的 ACL 随 DevEco 自动签名**直接下发**（profile 里 4 条 ACL 齐全），

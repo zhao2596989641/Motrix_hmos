@@ -175,7 +175,7 @@ import {
 } from './bridge/desktop-download-handoff'
 import { isPackagedLinuxFlatpak } from './bridge/flatpak-environment'
 import { resolvePackagedLinuxSnapEnvironment } from './bridge/snap-environment'
-import { CliToolService } from './cli/cli-tool-service'
+import { CliToolService } from '@core/cli/cli-tool-service'
 import { CommandRegistry } from './commands/command-registry'
 import { ContextStore } from './commands/context-store'
 import { registerAllCommands } from './commands/definitions'

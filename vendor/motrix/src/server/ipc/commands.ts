@@ -21,6 +21,11 @@ import type { PluginInstaller } from '@core/plugin/install/plugin-installer'
 import { PluginEngineVersionTooOld } from '@core/plugin/manifest/errors'
 import { PluginNetworkError } from '@core/plugin/network/plugin-network-error'
 import { operationHandlers } from '@core/plugin/operations/operation-handlers'
+import { cliToolRuntimeEnabled, getCliToolService } from '../cli-tool-runtime'
+import {
+  CLI_INSTALL_PACKAGE_MANAGERS,
+  type CliInstallRequest,
+} from '@shared/types/cli-tool'
 import type { OperationService } from '@core/plugin/operations/operation-service'
 import type { PluginRegistry } from '@core/plugin/plugin-registry'
 import type { RegistryClient } from '@core/plugin/registry/registry-client'
@@ -497,6 +502,19 @@ export function buildServerCommandHandlers(
         ErrorCode.AppUpdateManaged,
         'settings.about.webVersionNote'
       )
+    },
+    [Commands.InstallCliTool]: async (payload: unknown) => {
+      // r63：端侧可以 exec 用户的 node/brew，直接走真实安装（与 Electron 同一套服务）。
+      if (!cliToolRuntimeEnabled()) {
+        throw new AppError(ErrorCode.EngineFeatureUnavailable, 'settings.integration.cli.tool.reason.unsupported-web')
+      }
+      const parsed = z
+        .object({ packageManager: z.enum(CLI_INSTALL_PACKAGE_MANAGERS) })
+        .strict()
+        .parse(payload) as CliInstallRequest
+      const service = getCliToolService()
+      const operation = () => service.install(parsed)
+      return ctx.trackAsyncWork ? ctx.trackAsyncWork(operation) : operation()
     },
     [Commands.InstallFfmpeg]: async (payload: unknown) => {
       z.undefined().parse(payload)

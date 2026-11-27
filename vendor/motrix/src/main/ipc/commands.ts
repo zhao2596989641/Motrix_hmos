@@ -158,7 +158,7 @@ import {
 import { z } from 'zod'
 import { getAppImageNativeHost } from '../bridge/appimage-native-host-electron'
 import type { BridgeManager } from '../bridge/bridge-manager'
-import type { CliToolService } from '../cli/cli-tool-service'
+import type { CliToolService } from '@core/cli/cli-tool-service'
 import { MenuContextPatchSchema } from '../commands/context-schema'
 import type { ContextStore } from '../commands/context-store'
 import type { AppUpdateService } from '../core/app-update-service'
