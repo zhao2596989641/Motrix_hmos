@@ -3,8 +3,8 @@
 > **最新快照：r58（2026-11-27）** —— 下面的 0 节是当前总览；第 2 节起是 r31 时期的逐项明细，
 > 状态标记已按后续轮次补注（r32~r58 的改动见 [CHANGELOG](CHANGELOG.md)，计划与日志见 [PLAN](PLAN.md)）。
 
-- 当前产物：`com.lyldeer.motrix-2.4.5.58-debug-signed-r58.hap`，192,272,710 B，
-  MD5 `b3336f64899e2198a53c9a620e4d01f3`（待真机验证）
+- 当前产物：`com.lyldeer.motrix-2.4.5.58-debug-signed-r58.hap`，192,272,711 B，
+  MD5 `18dc808020a17e36067bfb6678fd1585`（待真机验证）
 - 依据：r20~r58 测试计划、`logs/` 真机日志、上游 2.4.5 源码对照清点
 
 ---

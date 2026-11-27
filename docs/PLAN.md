@@ -22,7 +22,7 @@ r47 起版本号改为 `2.4.5.47` / `240500047`，并修掉了"装插件会让�
 | JIT / 插件 | **受限 ACL 已到位**（调试 profile `acls` 含 `ALLOW_WRITABLE_CODE_MEMORY`）⇒ r50 起 Node 走 V8 JIT，
 `WebAssembly` 可用、上游 QuickJS 插件沙箱可工作；坚盾模式自动回退 `--jitless` |
 | 端侧运行时 | 进程内 `libnode.so.137`（Node 24.2.0，`--jitless`）+ Motrix server（fastify）+ ArkWeb 同源加载官方 Web UI |
-| HAP 体积 | **192,272,710 B**（r58；r46 起 `resfile/app/bin` 不再重复打包，省 11.0 MiB） |
+| HAP 体积 | **192,272,711 B**（r58；r46 起 `resfile/app/bin` 不再重复打包，省 11.0 MiB） |
 | 冷启动 | 宿主 ready：r47 2500 → r48 2026 → r50 2642（插件启动激活+JIT首跑） → **r53 1982ms（当前最好）**；
 点图标→仪表板可用 ≈ **4.0s**（含 ArkTS 预备 ~0.9s + 宿主 1.98s + 渲染层自举 ~0.93s） |
 | 但测通过的 | r38 / r44（回档基线）；r43 因"快速重试"事故被回档；r45（引擎状态单例 store）由 r46 间接验证 |

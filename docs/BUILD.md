@@ -148,3 +148,28 @@ GIT_SSH_COMMAND='ssh -i /storage/Users/currentUser/.ssh/id_ed25519 \
 ```
 
 若仍失败：先确认代理/梯子已关闭（fake-IP 会把 22 端口劫持成不可达）。
+
+## 6. 受限权限（ACL）构建开关
+
+`module.json5` 里用标记块管理两个需要华为下发 ACL 的受限权限；**没有 ACL 却声明会导致安装失败**。
+
+| 权限 | 标记块 | 用途 | 当前状态 |
+|---|---|---|---|
+| `ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY` | `MOTRIX_JIT_PERMISSION` | V8 JIT / WebAssembly | **已获 ACL，默认解注** |
+| `ohos.permission.READ_WRITE_USER_FILE` | `MOTRIX_USER_FILE_PERMISSION` | 读写 PC/2in1 用户目录（CLI 集成探针） | **默认注释，待 ACL** |
+
+```sh
+# 查看状态
+node scripts/patch-module-permissions.mjs status
+
+# 临时解注（构建结束自动还原）
+MOTRIX_ENABLE_JIT_PERMISSION=1 sh scripts/build-hap.sh
+MOTRIX_ENABLE_USER_FILE_PERMISSION=1 sh scripts/build-hap.sh
+
+# 手动切换（status / enable / disable 都支持 jit | user-file | all）
+node scripts/patch-module-permissions.mjs enable user-file
+node scripts/patch-module-permissions.mjs disable all
+```
+
+`READ_WRITE_USER_FILE` 的 ACL 需要华为开发者中心/DevEco 自动签名下发；拿到后
+`cli-probe.json` 的 `userFile` 段会从 `EPERM/EACCES` 变成 `readable:true`。

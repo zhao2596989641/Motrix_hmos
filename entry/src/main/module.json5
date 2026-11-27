@@ -75,7 +75,7 @@
       // >>> MOTRIX_JIT_PERMISSION_BEGIN
       { "name": "ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY",
       "reason": "$string:perm_jit_reason",
-      "usedScene": { "abilities": ["EntryAbility"], "when": "always" } }
+      "usedScene": { "abilities": ["EntryAbility"], "when": "always" } },
       // <<< MOTRIX_JIT_PERMISSION_END
 
       // 受限 ACL：读写 PC/2in1 的**用户目录**（/storage/Users/currentUser）。
