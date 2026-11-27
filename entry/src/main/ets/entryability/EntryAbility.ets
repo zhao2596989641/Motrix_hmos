@@ -86,6 +86,8 @@ export default class EntryAbility extends UIAbility {
       this.diagPath = '';
     }
     this.diag('===== onCreate =====');
+    // r62：动态沙箱实验 —— 记录数据根目录，判断 CUSTOM_SANDBOX 是否把沙箱搬到了用户目录
+    this.diag(`sandboxType probe filesDir=${this.context.filesDir} cacheDir=${this.context.cacheDir} bundleCodeDir=${this.context.bundleCodeDir}`);
     try {
       this.windowMemory = new WindowMemory(this.context.filesDir);
     } catch (error) {

@@ -3,14 +3,18 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
-## r62 · CUSTOM_SANDBOX 签名实验（2026-11-27，暂不出包）
+## r62 · CUSTOM_SANDBOX 已获批 + 动态沙箱/exec 探针（2026-11-27）
 
-> 目的：验证动态沙箱权限能否放开对用户自签 ELF 的 exec（BitFun 能跑 brew/node 的关键差异）。
+> `CUSTOM_SANDBOX` 的 ACL 随 DevEco 自动签名**直接下发**（profile 里 4 条 ACL 齐全），
+> 因此本轮出探针包验证两件事：动态沙箱是否自动生效、自签 ELF 能否 exec。
 
 - `module.json5` 新增 `ohos.permission.CUSTOM_SANDBOX` 标记块（已解注，仅用于签名申请 ACL）；
 - `patch-module-permissions.mjs` 支持 `custom-sandbox`（含 enable↔disable 回环校验）；
 - `string.json` 增加申请理由；`docs/BUILD.md` 权限表补一行；
-- **不出包**：ACL 未确认前，声明该权限会导致安装失败。等签名结果再决定出探针包或注释回。
+- 探针：`ability-diag.log` 记录 `filesDir/cacheDir/bundleCodeDir`（判断沙箱有没有搬到用户目录）；
+  `cli-probe.json` 新增 `sandbox` 段（sandboxHome/dataDir/cwd/旧 el2 目录/`~/appdata`）+ 原有 exec 探针；
+  `gather-logs.sh` 会自动探测动态沙箱下的新日志路径；
+- 产物 `2.4.5.62`（192,280,628 B，MD5 `b0292cf792f4a1ae939bf0c3e7694bbc`）。
 
 ## r61 · 命令行工具真实检测 + BitFun 机制对照（2026-11-27）
 

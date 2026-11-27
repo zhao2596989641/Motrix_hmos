@@ -19,6 +19,20 @@ if [ -z "$HDC" ] || [ ! -x "$HDC" ]; then
 fi
 
 FILES=/data/app/el2/100/base/com.lyldeer.motrix/haps/entry/files
+# r62：CUSTOM_SANDBOX（动态沙箱）若生效，数据根目录会搬到用户目录下。
+# 探测一下备用路径，存在就用它（不破坏旧行为）。
+set +e
+for candidate in \
+  /storage/Users/currentUser/appdata/com.lyldeer.motrix/haps/entry/files \
+  /storage/Users/currentUser/appdata/com.lyldeer.motrix/files \
+  /storage/Users/currentUser/appdata/com.lyldeer.motrix ; do
+  if [ -d "$candidate" ]; then
+    FILES="$candidate"
+    echo "[sandbox] 使用动态沙箱数据目录: $FILES"
+    break
+  fi
+done
+set -e
 DATA="$FILES/motrix"   # 宿主/原生侧数据目录（MOTRIX_DATA_DIR）
 mkdir -p "$OUT"
 

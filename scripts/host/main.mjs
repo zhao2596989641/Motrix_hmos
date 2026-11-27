@@ -892,6 +892,15 @@ function runCliEnvironmentProbe() {
   }
   const report = {
     at: Date.now(),
+    // r62：动态沙箱实验 —— 记录数据根目录与旧 el2 目录是否还在，判断 CUSTOM_SANDBOX 效果
+    sandbox: {
+      sandboxHome: sandboxHome,
+      dataDir: dataDir,
+      cwd: (() => { try { return process.cwd() } catch { return "" } })(),
+      legacyEl2: dirStat("/data/storage/el2/base/haps/entry/files/motrix"),
+      userAppdata: dirStat(path.join(USER_HOME, "appdata")),
+      userHomeMotrix: dirStat(path.join(USER_HOME, ".motrix")),
+    },
     userHome: USER_HOME,
     home: env.HOME,
     dirs: {
