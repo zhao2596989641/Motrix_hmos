@@ -6,6 +6,7 @@
 
 | 轮次 | HAP 体积 | MD5 | 结果 | 说明 |
 |---|---|---|---|---|
+| [r62](r62.md) | —（不出包） | — | 🧪 签名实验：加 `CUSTOM_SANDBOX` 看 ACL 能否下发（决定 exec 是否放开） | 动态沙箱实验 |
 | [r61](r61.md) | 192,280,941 B | `1c63e15125741d08d696fae171dfb180` | ⏳ 待真机验证 | 命令行工具真实检测（只读）+ BitFun 机制对照；r60 结论：能读能写不能执行 |
 | [r60](r60.md) | 192,276,843 B | `af55251c5b18eb1db8e4090e4606ffbd` | ✅ 结论：能读、**能写** ~/.harmonybrew/bin、不能 exec；已安装包可全量枚举 | 定论：读真实文件 OK / symlink 与 exec 被平台挡 → 补「写」与 shell 路径探针 + 已安装包全量枚举 |
 | [r59](r59.md) | 192,276,843 B | `2282bcaa757d05929809bfee43cb221c` | ✅ 结论：真实文件可读（brew/node/.npmrc），symlink 与 exec 被平台策略拦（r60 补写探测） | ACL 已生效（目录可读/文件 EACCES）→ 深层探针：lstat/realpath/open/group/真实路径 spawn |

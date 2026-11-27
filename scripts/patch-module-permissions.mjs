@@ -32,6 +32,12 @@ const BLOCKS = [
     end: '// <<< MOTRIX_JIT_PERMISSION_END',
   },
   {
+    key: 'custom-sandbox',
+    label: '动态沙箱权限',
+    begin: '// >>> MOTRIX_CUSTOM_SANDBOX_PERMISSION_BEGIN',
+    end: '// <<< MOTRIX_CUSTOM_SANDBOX_PERMISSION_END',
+  },
+  {
     key: 'user-file',
     label: '用户目录读写权限',
     begin: '// >>> MOTRIX_USER_FILE_PERMISSION_BEGIN',
@@ -46,7 +52,7 @@ const selected =
     ? BLOCKS
     : BLOCKS.filter((block) => block.key === targetArg)
 if (selected.length === 0) {
-  console.error(`未知目标：${targetArg}（可选 jit | user-file | all）`)
+  console.error(`未知目标：${targetArg}（可选 jit | user-file | custom-sandbox | all）`)
   process.exit(2)
 }
 

@@ -88,8 +88,21 @@
       // >>> MOTRIX_USER_FILE_PERMISSION_BEGIN
       { "name": "ohos.permission.READ_WRITE_USER_FILE",
       "reason": "$string:perm_user_file_reason",
-      "usedScene": { "abilities": ["EntryAbility"], "when": "always" } }
+      "usedScene": { "abilities": ["EntryAbility"], "when": "always" } },
       // <<< MOTRIX_USER_FILE_PERMISSION_END
+
+      // 受限 ACL：允许应用把沙箱改为**动态沙箱**（数据根目录转到 ~/appdata/<bundle>）。
+      // 用途（r62 实验）：对齐 BitFun 的形态 —— 它在用户目录下工作、并能调用
+      // Harmonybrew 装的 CLI。我们已确认 READ_WRITE_USER_FILE 只解决读写，
+      // 执行用户自签 ELF 仍是 EPERM；怀疑动态沙箱会换 SELinux 域从而放开 exec。
+      // 官方口径：「面向华为内部开发工具应用开放」，普通应用可能申请不下来。
+      // ★ 没 ACL 却声明会导致**安装失败**；本块默认解注只是为了"签名时申请"。
+      //   确认 ACL 下发后再出包；拿不到就把本块注释回。
+      // >>> MOTRIX_CUSTOM_SANDBOX_PERMISSION_BEGIN
+      { "name": "ohos.permission.CUSTOM_SANDBOX",
+      "reason": "$string:perm_custom_sandbox_reason",
+      "usedScene": { "abilities": ["EntryAbility"], "when": "always" } }
+      // <<< MOTRIX_CUSTOM_SANDBOX_PERMISSION_END
     ],
     "abilities": [
       {

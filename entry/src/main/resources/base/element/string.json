@@ -45,6 +45,10 @@
       "value": "用于读写用户目录，以检测并调用本机 Harmonybrew / npm 安装的命令行工具"
     },
     {
+      "name": "perm_custom_sandbox_reason",
+      "value": "用于把应用数据与工作目录放到用户目录（动态沙箱），以便调用本机 Harmonybrew 安装的命令行工具"
+    },
+    {
       "name": "BackGroundAbility_desc",
       "value": "后台下载服务（托盘保活）"
     },

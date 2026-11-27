@@ -157,6 +157,7 @@ GIT_SSH_COMMAND='ssh -i /storage/Users/currentUser/.ssh/id_ed25519 \
 |---|---|---|---|
 | `ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY` | `MOTRIX_JIT_PERMISSION` | V8 JIT / WebAssembly | **已获 ACL，默认解注** |
 | `ohos.permission.READ_WRITE_USER_FILE` | `MOTRIX_USER_FILE_PERMISSION` | 读写 PC/2in1 用户目录（CLI 集成探针） | **已获 ACL（2026-11-27），默认解注** |
+| `ohos.permission.CUSTOM_SANDBOX` | `MOTRIX_CUSTOM_SANDBOX_PERMISSION` | 动态沙箱（数据放用户目录；r62 实验：看能否放开 exec） | **待签名确认 ACL** |
 
 ```sh
 # 查看状态
@@ -167,7 +168,7 @@ MOTRIX_ENABLE_JIT_PERMISSION=1 sh scripts/build-hap.sh
 MOTRIX_ENABLE_USER_FILE_PERMISSION=1 sh scripts/build-hap.sh
 
 # 手动切换（status / enable / disable 都支持 jit | user-file | all）
-node scripts/patch-module-permissions.mjs enable user-file
+node scripts/patch-module-permissions.mjs enable user-file   # 或 custom-sandbox
 node scripts/patch-module-permissions.mjs disable all
 ```
 

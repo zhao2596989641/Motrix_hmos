@@ -67,6 +67,7 @@ r47 起版本号改为 `2.4.5.47` / `240500047`，并修掉了"装插件会让�
 | r51 | 插件健壮化：JIT 下退回原生 undici（不装垫片）、hook 超时 fail-open、startup 激活挪后、RPC 错误日志、签名口令自动同步 | ✅ 代码已出包；真机反馈"两个插件装不上" => 实为内置插件问题（r52） |
 | r52 | **打包官方内置插件**（filename-template / url-resolver）：新增 fetch-builtins 包装器绕过 undici 下载失败，sha256+签名校验后随包提供 | ✅ 真机日志已见两个 builtin 被发现/按需激活 |
 | r53 | 插件红标自愈（协议噪声不计错 + 激活成功清零 errorCount）；插件日志/ArkTS 诊断日志改本地时区 | ✅ 真机验证：红标消失、日志时间本地化；宿主 ready **1982ms**、点图标→仪表板 ≈**4.0s** |
+| r62 | `CUSTOM_SANDBOX` 签名实验（只为拿 ACL，不出包）：验证动态沙箱能否放开对用户自签 ELF 的 exec | 🧪 待签名 |
 | r61 | 命令行工具真实检测（读真实路径 + Cellar/npm 统计）+ BitFun 机制对照；确认"能读能写不能执行" | ⏳ 待真机验证 |
 | r60 | CLI 可行性定论（可读真实文件／symlink 与 exec 被平台拦）；补写权限、shell 可达性、已安装包全量枚举探针 | ⏳ 待真机验证 |
 | r59 | ACL 生效，但 symlink 文件 EACCES；加 lstat/readlink/realpath/open + group + 真实路径 spawn 深层探针 | ⏳ 待真机验证 |
