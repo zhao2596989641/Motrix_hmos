@@ -3,6 +3,22 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r60 · CLI 集成可行性定论 + 写/枚举探针（2026-11-27）
+
+> r59 日志证明：`READ_WRITE_USER_FILE` 生效，但 symlink 与 exec 是两条独立的平台策略。
+
+- **能读**：`Homebrew/bin/brew`、`Cellar/node/.../node`、`~/.npmrc` 都能 `open`（真实路径）；
+  `Cellar` 88 个 formula、`lib/node_modules` 7 个全局包、`bin` 539 个命令名都可枚举。
+- **不能跟 symlink**：`~/.harmonybrew/bin/*` 是 symlink，`lstat/realpath/open` 一律 `EACCES`；
+  必须走真实路径。
+- **不能 exec**：harmonybrew 的 `node` 是 `self-sign`，应用域 exec → `EPERM`（只有本应用证书
+  签名的 ELF 才能执行，见 RUNTIME.md）；`brew` 脚本 shebang 是 `#!/usr/bin/zsh -pu`，
+  而 `/usr/bin/zsh` 在应用命名空间里 `ENOENT`。
+- **r60 新增探针**：`userFile.write.*`（用户目录 / harmonybrew/bin / ~/npm/bin 的建删文件）、
+  `userFile.shells`（7 个候选 shell 的可达性）、`userFile.installed.*`（formula / npm 包 / 命令名全量）。
+  这决定 CLI 集成走「写 shell 垫片 + 只读检测」还是「只读检测 + 复制命令」。
+- 版本 `2.4.5.60` / `240500060`；徽章 `HarmonyOS Port r60`。
+
 ## r59 · ACL 生效但文件打不开：symlink/realpath/group 深层探针（2026-11-27）
 
 > r58 aclprobe 真机日志：`READ_WRITE_USER_FILE` 让目录可读（用户目录 170 项、harmonybrew/bin 539 项），

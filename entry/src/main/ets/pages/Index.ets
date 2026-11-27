@@ -185,7 +185,7 @@ struct Index {
   state.language = ${JSON.stringify(language)};
   state.colorMode = ${JSON.stringify(colorMode)};
   // 移植轮次：关于页用它显示 "HarmonyOS Port rNN" 徽章
-  state.portVersion = 'r59';
+  state.portVersion = 'r60';
   // 开机自启状态：'enabled' | 'disabled' | 'unsupported' | 'unknown'
   // 设置页据此显示「已开启 / 未开启 / 设备不支持」+ 跳转系统设置的按钮。
   state.autoStartup = ${JSON.stringify(autoStartup)};

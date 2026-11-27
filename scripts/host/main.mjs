@@ -832,6 +832,47 @@ function linkProbe(target) {
   return report
 }
 
+/**
+ * 写探测（r60）：能读 ≠ 能写。分别在用户目录、harmonybrew/bin、npm/bin 下
+ * 建临时文件并删除，把每一步的 errno 记下来。
+ */
+function writeProbe(dir) {
+  const report = { dir }
+  try {
+    fs.accessSync(dir)
+    report.exists = true
+  } catch (error) {
+    report.exists = false
+    report.accessError = error.code || error.message
+    return report
+  }
+  const probeFile = path.join(dir, `.motrix-write-probe-${process.pid}`)
+  try {
+    fs.writeFileSync(probeFile, "motrix-write-probe\n")
+    report.write = true
+    try {
+      report.cleanup = fs.unlinkSync(probeFile) === undefined
+    } catch (error) {
+      report.cleanup = false
+      report.cleanupError = error.code || error.message
+    }
+  } catch (error) {
+    report.write = false
+    report.writeError = error.code || error.message
+  }
+  return report
+}
+
+/** 目录内容全量（最多 200 项）：检测已安装 formula / npm 包用 */
+function listDir(target, limit) {
+  try {
+    const entries = fs.readdirSync(target)
+    return { ok: true, count: entries.length, entries: entries.slice(0, limit) }
+  } catch (error) {
+    return { ok: false, error: error.code || error.message }
+  }
+}
+
 function runCliEnvironmentProbe() {
   const brewPrefix = path.join(USER_HOME, ".harmonybrew")
   const npmPrefix = path.join(USER_HOME, "npm")
@@ -877,6 +918,24 @@ function runCliEnvironmentProbe() {
       groups: typeof process.getgroups === "function" ? process.getgroups() : [],
       uid: typeof process.getuid === "function" ? process.getuid() : -1,
       gid: typeof process.getgid === "function" ? process.getgid() : -1,
+      // r60：读写分离探测 —— CLI 要"写一个 shell 垫片"进用户 PATH，必须确认能写。
+      write: {
+        userHome: writeProbe(USER_HOME),
+        harmonybrewBin: writeProbe(path.join(brewPrefix, "bin")),
+        userNpmBin: writeProbe(path.join(USER_HOME, "npm", "bin")),
+      },
+      // r60：检测能力 —— 全量枚举已安装项（88 个 formula / 全局 npm 包 / bin 命令名）。
+      installed: {
+        cellar: listDir(path.join(brewPrefix, "Cellar"), 200),
+        brewNodeModules: listDir(path.join(brewPrefix, "lib", "node_modules"), 200),
+        brewBinNames: listDir(path.join(brewPrefix, "bin"), 220),
+      },
+      // r60：app 命名空间里到底有哪些 shell（brew 脚本 shebang 是 #!/usr/bin/zsh -pu）
+      shells: ["/bin/sh", "/bin/bash", "/bin/zsh", "/usr/bin/sh", "/usr/bin/bash", "/usr/bin/zsh", "/system/bin/sh"]
+        .map((candidate) => ({
+          path: candidate,
+          probe: fileProbe(candidate),
+        })),
     },
     spawn: {
       shEcho: spawnProbe("sh-echo", sh, ["-c", "printf ok"]),
