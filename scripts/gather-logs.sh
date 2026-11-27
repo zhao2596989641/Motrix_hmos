@@ -26,6 +26,9 @@ mkdir -p "$OUT"
 pull() {
   remote="$1"
   local_name="$2"
+  # 先删本地旧文件：hdc 连不上时 file recv 会失败但旧文件还在，
+  # 原来的 [ -s ] 判断会把旧文件当成“刚拉下来的”，造成假成功（r57 踩过）。
+  rm -f "$OUT/$local_name"
   if "$HDC" file recv "$remote" "$OUT/$local_name" >/dev/null 2>&1 && [ -s "$OUT/$local_name" ]; then
     echo "[ok]   $local_name"
     return 0

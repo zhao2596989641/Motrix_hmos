@@ -3,6 +3,19 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r57 · 开屏改成系统 logo → m·o 字标 + 扩展配对码显示（2026-11-27）
+
+> r56 真机两件事：开屏"空前地长"（实际 12.3s）；扩展点配对，Motrix 没有 PIN 弹窗。
+
+- **开屏 12s**：r56 把撤遮罩判据改成"渲染层挂载"，但 `runJavaScript` 轮询 `html.mtx-booting`
+  一直等不到（100 次超时才放行）。r57 恢复 onPageEnd 撤遮罩，并按维护者定义改成：
+  ① 系统增强启动页 app logo → ② ArkUI 遮罩 m·o 字标（112×25/.85）→ ③ 网页 `#renderer-boot`
+  同一个字标（注入 CSS 放大到 112×25/.85）。②→③ 同尺寸同透明度，拼接成一段字标 loading。
+- **配对无 PIN**：r56 的 `operatorDelivery=local` 下服务端会丢弃扩展配对事件，Web UI 收不到码。
+  宿主补 `MOTRIX_PUBLIC_URL=http://127.0.0.1:<port>` + `MOTRIX_ALLOW_INSECURE_OPERATOR_HTTP=1`，
+  `operatorDelivery` 变 `web`，配对提示与 8 位配对码通过事件流显示在窗口里（回环 HTTP 安全，公网仍只认 HTTPS）。
+- 版本 `2.4.5.57` / `240500057`；徽章 `HarmonyOS Port r57`。
+
 ## r56 · 开屏三段跳 / 扩展桥端口 / 托盘面板减高（2026-11-27）
 
 > r55 真机反馈三件事：开屏先大 logo 再小 logo 再 m·o 字标；集成卡片显示"扩展通道还没启动"；

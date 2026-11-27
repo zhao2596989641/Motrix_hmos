@@ -288,6 +288,11 @@ const defaults = {
   MOTRIX_MDXP_HOST: '127.0.0.1',
   MOTRIX_REMOTE_EXTENSION_ENABLED: '1',
   MOTRIX_REMOTE_EXTENSION_PUBLIC_URL: `ws://127.0.0.1:${bridgePort}`,
+  // r57：让配对码显示在 Web UI（r56 及以前 operatorDelivery=local，配对请求事件会被服务端
+  // 直接丢弃，表现为“扩展点配对但 Motrix 毫无反应”）。本地回环用 HTTP 是安全的，
+  // 需要显式允许 insecure operator HTTP；公网仍然只认 HTTPS。
+  MOTRIX_PUBLIC_URL: `http://127.0.0.1:${port}`,
+  MOTRIX_ALLOW_INSECURE_OPERATOR_HTTP: '1',
   // 应用内 HOME 指向数据目录：插件/工具链拿到的都是可写目录
   HOME: path.join(dataDir, 'home'),
   TMPDIR: path.join(dataDir, 'tmp'),
