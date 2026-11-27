@@ -1953,6 +1953,16 @@
         "linuxActionFailed": "无法更新 Linux 默认应用，请检查桌面环境设置。"
       },
       "browser": {
+        "harmony": {
+          "title": "连接本机 Motrix（鸿蒙）",
+          "stepInstall": "在华为浏览器 / 海泰浏览器的扩展管理里安装 Chromium 版 Motrix Extension（商店不可达时可用开发者模式加载解压包）。",
+          "stepAddServer": "打开扩展 → 设置 → 添加「远程 Motrix 服务器」，地址填上面这一行并保存。",
+          "stepPair": "回到 Motrix，按提示确认配对请求；把 Motrix 显示的 8 位配对码输入扩展即可。",
+          "sideloadNote": "开发者模式加载的扩展 ID 与商店版不同，需要先在下方「可信扩展」里把它的 ID 加进来，否则配对请求会被拒绝。",
+          "notRunning": "扩展通道还没启动：请确认上方「允许浏览器扩展发送下载」已打开，然后重启 Motrix。",
+          "copy": "复制",
+          "copied": "已复制"
+        },
         "title": "浏览器扩展",
         "masterSwitch": "连接浏览器扩展",
         "masterSwitchDesc": "安装浏览器扩展后，将网页下载发送到 Motrix。",

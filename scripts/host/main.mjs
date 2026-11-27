@@ -21,6 +21,7 @@ import fs from 'node:fs'
 import http from 'node:http'
 import https from 'node:https'
 import Module, { createRequire } from 'node:module'
+import net from 'node:net'
 import path from 'node:path'
 
 const log = (...args) => {
@@ -231,6 +232,42 @@ const explicitFinalize = env.MOTRIX_FINALIZE_FS_BIN && existsQuiet(env.MOTRIX_FI
 const aria2Binary = explicitAria2 || libsAria2 || materializeExecutable('aria2c')
 const finalizeFsBinary = explicitFinalize || libsFinalize || materializeExecutable('motrix-finalize-fs')
 
+// ── 浏览器扩展：固定 MDXP 桥端口 ──────────────────────────────────────────────
+//
+// 上游 MDXP 桥（浏览器扩展的 WebSocket 服务）默认端口 16801；端口 0 会随机取，
+// 而**扩展端要手填 ws:// 地址**，随机会让用户填不了。所以这里先抢一个空闲端口，
+// 再把同一端口写进远程扩展开关（remote-extension-config 要求 public URL 的
+// authority 与实际监听一致，否则 /discovery 会被拒）。
+//
+// 为什么不用 16802~16806：那是上游"本机 App 发现"的候选段；我们走的是
+// **远程 Server 模式**（扩展里手动添加地址），16801 是上游默认，被占时顺延。
+const BRIDGE_PORT_CANDIDATES = [16801, 16802, 16803, 16804, 16805, 16806]
+const USER_HOME = env.MOTRIX_USER_HOME || '/storage/Users/currentUser'
+
+function canListen(port) {
+  return new Promise((resolve) => {
+    let done = false
+    const finish = (value) => {
+      if (!done) { done = true; resolve(value) }
+    }
+    const server = net.createServer()
+    server.once('error', () => finish(false))
+    server.listen(port, '127.0.0.1', () => server.close(() => finish(true)))
+  })
+}
+
+async function pickBridgePort() {
+  const explicit = Number(env.MOTRIX_MDXP_PORT || 0)
+  if (Number.isInteger(explicit) && explicit > 0) return explicit
+  for (const candidate of BRIDGE_PORT_CANDIDATES) {
+    if (await canListen(candidate)) return candidate
+  }
+  return BRIDGE_PORT_CANDIDATES[0]
+}
+
+const bridgePort = await pickBridgePort()
+log(`bridge port = ${bridgePort}（浏览器扩展连接地址 ws://127.0.0.1:${bridgePort}）`)
+
 // ── 补齐 server 需要的环境变量 ────────────────────────────────────────────────
 // 这些都是"运行期才知道的绝对路径"：上游默认按 Linux 系统布局算，在 HAP 沙箱里全是错路径。
 const defaults = {
@@ -242,8 +279,12 @@ const defaults = {
   MOTRIX_EXTRA_DIR: path.join(appRoot, 'extra'),
   MOTRIX_PLUGIN_DIR: path.join(dataDir, 'plugins'),
   MOTRIX_BUILTIN_PLUGIN_DIR: path.join(appRoot, 'builtin-plugins'),
-  // 浏览器扩展配对通道端侧用不上；置 0 关掉固定端口，少一处监听面
-  MOTRIX_MDXP_PORT: '0',
+  // 浏览器扩展：固定桥端口 + 远程扩展（扩展里手动填 ws://127.0.0.1:<port>）
+  // 这条通道只监听回环；配对仍需用户在扩展里输入 Motrix 显示的 8 位配对码。
+  MOTRIX_MDXP_PORT: String(bridgePort),
+  MOTRIX_MDXP_HOST: '127.0.0.1',
+  MOTRIX_REMOTE_EXTENSION_ENABLED: '1',
+  MOTRIX_REMOTE_EXTENSION_PUBLIC_URL: `ws://127.0.0.1:${bridgePort}`,
   // 应用内 HOME 指向数据目录：插件/工具链拿到的都是可写目录
   HOME: path.join(dataDir, 'home'),
   TMPDIR: path.join(dataDir, 'tmp'),
@@ -695,6 +736,60 @@ function runSpawnDiagnostics() {
     )
   } catch {}
 }
+// ── CLI 环境探测（r55 新增，纯只读诊断）─────────────────────────────────────
+//
+// 目的：搞清"端侧第三方应用能不能看到用户的 brew/npm 世界"。这决定集成卡片里
+// 命令行工具那一块怎么做（BitFun 的做法是直接 spawn harmonybrew 的 brew/node，
+// 并把 HOME/PATH 指到用户目录；我们要先在真机上确认本应用有没有同样的权限）。
+//
+// 写 <SANDBOX_HOME>/cli-probe.json；全部失败也只是一份报告，不影响任何功能。
+function dirStat(target) {
+  try {
+    const stat = fs.statSync(target)
+    if (!stat.isDirectory()) return { exists: true, kind: "file", size: stat.size }
+    const entries = fs.readdirSync(target)
+    return { exists: true, kind: "dir", count: entries.length, sample: entries.slice(0, 8) }
+  } catch (error) {
+    return { exists: false, error: (error && (error.code || error.message)) || "unknown" }
+  }
+}
+
+function runCliEnvironmentProbe() {
+  const brewPrefix = path.join(USER_HOME, ".harmonybrew")
+  const npmPrefix = path.join(USER_HOME, "npm")
+  const brewBin = path.join(brewPrefix, "bin", "brew")
+  const brewNode = path.join(brewPrefix, "bin", "node")
+  const brewNpmCli = path.join(brewPrefix, "lib", "node_modules", "npm", "bin", "npm-cli.js")
+  const sh = "/bin/sh"
+  const report = {
+    at: Date.now(),
+    userHome: USER_HOME,
+    home: env.HOME,
+    dirs: {
+      harmonybrew: dirStat(brewPrefix),
+      harmonybrewBin: dirStat(path.join(brewPrefix, "bin")),
+      cellar: dirStat(path.join(brewPrefix, "Cellar")),
+      brewNodeModules: dirStat(path.join(brewPrefix, "lib", "node_modules")),
+      userNpm: dirStat(path.join(npmPrefix, "lib", "node_modules")),
+      userNpmrc: dirStat(path.join(USER_HOME, ".npmrc")),
+    },
+    spawn: {
+      shEcho: spawnProbe("sh-echo", sh, ["-c", "printf ok"]),
+      shWhich: spawnProbe("sh-which", sh, ["-c", "command -v node; command -v npm; command -v brew"]),
+      brewNodeVersion: spawnProbe("brew-node", brewNode, ["-v"]),
+      brewVersion: spawnProbe("brew-version", brewBin, ["--version"]),
+      brewNpmVersion: spawnProbe("brew-npm", brewNode, [brewNpmCli, "--version"]),
+    },
+  }
+  try {
+    fs.writeFileSync(path.join(sandboxHome, "cli-probe.json"), JSON.stringify(report, null, 2))
+  } catch {}
+  const ok = Object.entries(report.spawn)
+    .filter(([, probe]) => probe.ok)
+    .map(([name]) => name)
+  log(`cli-probe spawn ok: ${ok.length ? ok.join(",") : "(none)"}`)
+}
+
 // 【r48 冷启动】启动期自检（spawn-probe.json）纯诊断、不参与任何判据，
 // 而且里面 5 个 spawnSync 每个 ~60ms —— 以前它挡在 import server 之前，白吃 200ms+。
 // 现在推迟到 ready 之后（此时 UI 已在加载），只在真机排查时才需要这份数据。
@@ -703,6 +798,11 @@ setTimeout(() => {
     runSpawnDiagnostics()
   } catch (error) {
     log('spawn diagnostics failed:', error && error.message)
+  }
+  try {
+    runCliEnvironmentProbe()
+  } catch (error) {
+    log('cli probe failed:', error && error.message)
   }
 }, 20_000)
 

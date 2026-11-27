@@ -59,3 +59,6 @@ entry/hnp/
 # 本地签名材料（**绝不提交**）
 build-profile.local.json5
 local-signing/
+
+# 临时脚本目录（r55 起）
+/output/

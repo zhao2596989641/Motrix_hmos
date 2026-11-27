@@ -16,6 +16,7 @@ import type { PairedClientInfo } from '@shared/protocol/bridge'
 import { useFormContext } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { BrowserExtensionInstalls } from './browser-extension-installs'
+import { HarmonyExtensionHint } from './harmony-extension-hint'
 import { ClientPairingSwitch } from './client-pairing-switch'
 import type { IntegrationFormValues } from './integration-dialog'
 import { TrustedExtensionsSection } from './trusted-extensions-section'
@@ -82,6 +83,7 @@ export function BrowserExtensionsSection() {
       <ClientPairingSwitch browser />
 
       <BrowserExtensionInstalls />
+      <HarmonyExtensionHint />
       {enabled && accountName && <NasPairingInbox accountName={accountName} />}
 
       {status?.degraded && (

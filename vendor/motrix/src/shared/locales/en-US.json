@@ -1967,6 +1967,16 @@
         "linuxActionFailed": "Couldn’t update the Linux default. Check your desktop environment settings."
       },
       "browser": {
+        "harmony": {
+          "title": "Connect to Motrix on this device (HarmonyOS)",
+          "stepInstall": "Install the Chromium build of Motrix Extension in Huawei Browser or Haitai Browser (use Developer mode with the unpacked build if the store is unreachable).",
+          "stepAddServer": "Open the extension → Settings → add a remote Motrix Server and paste the address above.",
+          "stepPair": "Approve the pairing request in Motrix, then type the 8-character pairing code into the extension.",
+          "sideloadNote": "An unpacked extension has a different ID than the store build. Add that ID under Trusted extensions below, otherwise pairing is rejected.",
+          "notRunning": "The extension channel is not running yet: enable “Allow browser extensions to send downloads” above, then restart Motrix.",
+          "copy": "Copy",
+          "copied": "Copied"
+        },
         "title": "Browser extensions",
         "masterSwitch": "Connect browser extensions",
         "masterSwitchDesc": "Send webpage downloads to Motrix with the browser extension.",

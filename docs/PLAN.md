@@ -18,11 +18,11 @@ r47 起版本号改为 `2.4.5.47` / `240500047`，并修掉了"装插件会让�
 | 维度 | 状态 |
 |---|---|
 | 装机形态 | HAP `com.lyldeer.motrix`，2in1 / aarch64 / API 26（target+compatible 均 `26.0.0`），debug 签名（**只自己用**，见待决策 4） |
-| 版本号 | `versionCode 240500054` / `versionName 2.4.5.54`（方案：上游 2405 + 占位 00 + 轮次 054） |
+| 版本号 | `versionCode 240500055` / `versionName 2.4.5.55`（方案：上游 2405 + 占位 00 + 轮次 055） |
 | JIT / 插件 | **受限 ACL 已到位**（调试 profile `acls` 含 `ALLOW_WRITABLE_CODE_MEMORY`）⇒ r50 起 Node 走 V8 JIT，
 `WebAssembly` 可用、上游 QuickJS 插件沙箱可工作；坚盾模式自动回退 `--jitless` |
 | 端侧运行时 | 进程内 `libnode.so.137`（Node 24.2.0，`--jitless`）+ Motrix server（fastify）+ ArkWeb 同源加载官方 Web UI |
-| HAP 体积 | **192,051,591 B**（r54；r46 起 `resfile/app/bin` 不再重复打包，省 11.0 MiB） |
+| HAP 体积 | **192,059,784 B**（r55；r46 起 `resfile/app/bin` 不再重复打包，省 11.0 MiB） |
 | 冷启动 | 宿主 ready：r47 2500 → r48 2026 → r50 2642（插件启动激活+JIT首跑） → **r53 1982ms（当前最好）**；
 点图标→仪表板可用 ≈ **4.0s**（含 ArkTS 预备 ~0.9s + 宿主 1.98s + 渲染层自举 ~0.93s） |
 | 但测通过的 | r38 / r44（回档基线）；r43 因"快速重试"事故被回档；r45（引擎状态单例 store）由 r46 间接验证 |
@@ -67,6 +67,7 @@ r47 起版本号改为 `2.4.5.47` / `240500047`，并修掉了"装插件会让�
 | r51 | 插件健壮化：JIT 下退回原生 undici（不装垫片）、hook 超时 fail-open、startup 激活挪后、RPC 错误日志、签名口令自动同步 | ✅ 代码已出包；真机反馈"两个插件装不上" => 实为内置插件问题（r52） |
 | r52 | **打包官方内置插件**（filename-template / url-resolver）：新增 fetch-builtins 包装器绕过 undici 下载失败，sha256+签名校验后随包提供 | ✅ 真机日志已见两个 builtin 被发现/按需激活 |
 | r53 | 插件红标自愈（协议噪声不计错 + 激活成功清零 errorCount）；插件日志/ArkTS 诊断日志改本地时区 | ✅ 真机验证：红标消失、日志时间本地化；宿主 ready **1982ms**、点图标→仪表板 ≈**4.0s** |
+| r55 | 浏览器扩展通道（MDXP 桥固定端口 + 远程扩展开关 + 鸿蒙连接提示）；CLI 环境探测（cli-probe.json） | ⏳ 待真机验证 |
 | r54 | 界面收尾：关于页隐藏检查更新（含自动检查开关）；版本徽章与 `2.4.5` 中轴对齐；托盘改华为规范黑白单色自适应图标；开屏只留居中 logo（Clash 风格）；开机自启改为「打开系统设置」按钮（关于页提示删除） | ⏳ 待真机验证 |
 
 **踩过的坑（写进 [BUILD](BUILD.md)/[RUNTIME](RUNTIME.md)，别再踩）**：
@@ -100,8 +101,10 @@ ArkWeb 同一 host 只有 **6 条连接**——任何"失败快速重试"都必�
 1. **代理/TUN 兜底**：**保持现状、不做代码**。维护者在 Clash/代理里自行把 `127.0.0.1`、`::1`、`localhost`
    加进例外即可（r45 的 `query burst`/`slow query` 诊断可用来确认是否代理问题）。
 2. **入口收敛**：**部分已定**（r54）——关于页「检查更新」+ 自动检查开关**已隐藏**；
-   插件页、设置「集成」卡片**仍可见**。集成卡片经调研大半不可用（扩展要看华为浏览器是否支持、
-   CLI 不能替用户装、FFmpeg 只能随包且当前无用途），**改法待定**（见 share STATUS §21）。
+   插件页、设置「集成」卡片**仍可见**。r55 已把**浏览器扩展通道**打开（MDXP 桥固定端口 +
+   远程扩展开关 + 鸿蒙连接提示），待真机验证；**CLI 集成**等 `cli-probe.json` 回来再定
+   （BitFun 证明可以直接 spawn harmonybrew 的 brew/node，见 share STATUS §22）；
+   FFmpeg 仍按“随包才有意义、当前无用途”暂缓。
    另：改名上架可行性已调研（技术可行 / 合规有条件 / 审核上 BT 磁力是主要风险），**是否做独立上架分支待定**。
 3. **插件系统**：**已解决**（r50）。W^X 探针确认普通应用域禁止可执行内存，但受限 ACL
    `ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY` 已获批并到位 ⇒ Node 走 V8 JIT，

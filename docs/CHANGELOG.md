@@ -3,6 +3,22 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r55 · 浏览器扩展通道打通 + CLI 环境探测（2026-11-27）
+
+> 维护者确认华为浏览器 / 海泰浏览器都能装 Chromium 扩展；本轮把端侧的扩展通道真正打开，
+> 同时把“能不能像 BitFun 那样调用户的 brew/npm”做成一份只读探测报告（cli-probe.json）。
+
+- **扩展通道**：宿主不再把 `MOTRIX_MDXP_PORT` 置 0，而是抢 `16801…16806` 里的空闲端口，
+  同时设 `MOTRIX_MDXP_HOST=127.0.0.1`、`MOTRIX_REMOTE_EXTENSION_ENABLED=1`、
+  `MOTRIX_REMOTE_EXTENSION_PUBLIC_URL=ws://127.0.0.1:<port>`；服务端据此打开远程扩展面，
+  集成卡片从“扩展配对不可用”变成可用的扩展管理界面。
+- **鸿蒙连接提示**：新增 `HarmonyExtensionHint`，显示实际连接地址 `ws://127.0.0.1:<port>`
+  与三步配对说明（装 Chromium 版扩展 → 添加远程服务器 → 输入 8 位配对码），并提醒
+  开发者模式加载的扩展要先在「可信扩展」里加 ID。
+- **CLI 探测**：宿主 ready 后 20s 写 `cli-probe.json`（brew/npm 目录可见性 + spawn 结果），
+  为 r56 的命令行工具集成提供真机依据（BitFun 的做法是直接 spawn harmonybrew 的 brew/node）。
+- 版本 `2.4.5.55` / `240500055`；徽章 `HarmonyOS Port r55`。
+
 ## r54 · 界面细节收尾：隐藏更新 / 徽章对齐 / 单色托盘 / 开屏 logo / 自启跳转（2026-11-26）
 
 > 收敛阶段的一轮「观感与入口」小改，不动下载逻辑。

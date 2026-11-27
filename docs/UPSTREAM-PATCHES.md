@@ -39,12 +39,18 @@
 | `src/renderer/routes/settings/cards/about-dialog.tsx` | ～ | 版本旁 `HarmonyOS Port rNN` 徽章（**r54 起与 `2.4.5` 中轴对齐**）；**r54：更新区域 + 自动检查开关在鸿蒙壳整块不渲染**，`useAppUpdate(false)` 不再查询更新状态；r42 的「开机自启提示」段已删除（改到设置→通用，见下） |
 | `src/renderer/routes/settings/cards/general-dialog.tsx` | ～ | **r54**：鸿蒙壳在「启动与退出」里插入 `HarmonyAutostartRow`（状态 + 跳转系统设置按钮），替代上游开关 |
 | `src/renderer/routes/settings/cards/harmony-autostart-row.tsx` | ＋ | **r54 新增**：开机自启行。显示 `__MOTRIX_PLATFORM__.autoStartup`（enabled/disabled/unsupported/unknown）+ 监听 `motrix-platform-change` 刷新；按钮发 `motrix-action://autostart` |
+| `src/renderer/routes/settings/cards/integration/harmony-extension-hint.tsx` | ＋ | **r55 新增**：鸿蒙扩展连接提示——显示 `ws://127.0.0.1:<桥端口>`（来自 `useBridgeStatus`）+ 复制 + 三步配对说明；桥未起时提示“通道未启动” |
+| `src/renderer/routes/settings/cards/integration/browser-extensions-section.tsx` | ～ | **r55**：在扩展安装入口下挂 `HarmonyExtensionHint`（非鸿蒙壳自动返回 null，其它平台零变化） |
 | `src/renderer/routes/dashboard/components/dashboard-grid.tsx` | ～ | 仪表板页头 tooltip 朝向改为 `bottom`（默认朝上会顶到窗口三键区域） |
 | `src/renderer/routes/dashboard/activity/activity-calendar.tsx` | ～ | 活动日历的日期/性能适配（jitless 下渲染开销） |
 | `src/renderer/index.tsx` | ～ | 启动引导补丁（平台值、启动守卫/看门狗） |
-| `src/shared/locales/{en-US,zh-CN}.json` | ～ | 移植专属文案（其它语言 fallback 英文）：**r54** 新增 `settings.general.harmonyAutostart{Desc,Open,UnsupportedHint,Status.*}`；删除已废弃的 `settings.about.harmonyAutostartHint` |
+| `src/shared/locales/{en-US,zh-CN}.json` | ～ | 移植专属文案（其它语言 fallback 英文）：**r54** 新增 `settings.general.harmonyAutostart{Desc,Open,UnsupportedHint,Status.*}`、删除 `settings.about.harmonyAutostartHint`；**r55** 新增 `settings.integration.browser.harmony.*`（连接地址/三步说明/复制） |
 
 ## 4. 服务端（`src/server/`、`src/core/`）
+
+> **r55 备注（宿主 env，不是源码补丁）**：`scripts/host/main.mjs` 会选一个固定 MDXP 端口并设置
+> `MOTRIX_MDXP_HOST/PORT`、`MOTRIX_REMOTE_EXTENSION_ENABLED=1`、`MOTRIX_REMOTE_EXTENSION_PUBLIC_URL=ws://127.0.0.1:<port>`。
+> 升级上游后若这三条 env 语义变化，集成卡片的扩展面会退回“配对不可用”。
 
 | 文件 | 类型 | 改了什么 |
 |---|---|---|
