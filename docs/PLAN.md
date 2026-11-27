@@ -67,7 +67,7 @@ r47 起版本号改为 `2.4.5.47` / `240500047`，并修掉了"装插件会让�
 | r51 | 插件健壮化：JIT 下退回原生 undici（不装垫片）、hook 超时 fail-open、startup 激活挪后、RPC 错误日志、签名口令自动同步 | ✅ 代码已出包；真机反馈"两个插件装不上" => 实为内置插件问题（r52） |
 | r52 | **打包官方内置插件**（filename-template / url-resolver）：新增 fetch-builtins 包装器绕过 undici 下载失败，sha256+签名校验后随包提供 | ✅ 真机日志已见两个 builtin 被发现/按需激活 |
 | r53 | 插件红标自愈（协议噪声不计错 + 激活成功清零 errorCount）；插件日志/ArkTS 诊断日志改本地时区 | ✅ 真机验证：红标消失、日志时间本地化；宿主 ready **1982ms**、点图标→仪表板 ≈**4.0s** |
-| r58 | 继承 r57；加 `READ_WRITE_USER_FILE` 受限权限（默认注释）+ `cli-probe.userFile` 探针 + 权限切换脚本 | ⏳ 待真机验证（ACL 待 DevEco 重新签名） |
+| r58 | 继承 r57；加 `READ_WRITE_USER_FILE` 受限权限 + `cli-probe.userFile` 探针 + 权限切换脚本；ACL 已于 2026-11-27 20:00 随 DevEco 重新签名下发 | 🟢 ACL 已到手，待装 aclprobe 验证读写/exec |
 | r57 | 开屏改为「系统 app logo → m·o 字标」并去掉 12s 等待；扩展配对码改为 Web UI 显示（operatorDelivery=web） | ⏳ 待真机验证 |
 | r56 | 开屏三段跳修复（增强启动页 + 同一张图 + 等 React 挂载）、扩展桥端口避开 aria2 段、托盘面板 880→740 | ⏳ 待真机验证 |
 | r55 | 浏览器扩展通道（MDXP 桥固定端口 + 远程扩展开关 + 鸿蒙连接提示）；CLI 环境探测（cli-probe.json） | ⏳ 待真机验证 |

@@ -156,7 +156,7 @@ GIT_SSH_COMMAND='ssh -i /storage/Users/currentUser/.ssh/id_ed25519 \
 | 权限 | 标记块 | 用途 | 当前状态 |
 |---|---|---|---|
 | `ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY` | `MOTRIX_JIT_PERMISSION` | V8 JIT / WebAssembly | **已获 ACL，默认解注** |
-| `ohos.permission.READ_WRITE_USER_FILE` | `MOTRIX_USER_FILE_PERMISSION` | 读写 PC/2in1 用户目录（CLI 集成探针） | **默认注释，待 ACL** |
+| `ohos.permission.READ_WRITE_USER_FILE` | `MOTRIX_USER_FILE_PERMISSION` | 读写 PC/2in1 用户目录（CLI 集成探针） | **已获 ACL（2026-11-27），默认解注** |
 
 ```sh
 # 查看状态
@@ -171,5 +171,5 @@ node scripts/patch-module-permissions.mjs enable user-file
 node scripts/patch-module-permissions.mjs disable all
 ```
 
-`READ_WRITE_USER_FILE` 的 ACL 需要华为开发者中心/DevEco 自动签名下发；拿到后
-`cli-probe.json` 的 `userFile` 段会从 `EPERM/EACCES` 变成 `readable:true`。
+`READ_WRITE_USER_FILE` 的 ACL 已于 2026-11-27 通过 DevEco 自动签名下发；
+`cli-probe.json` 的 `userFile` 段应显示 `readable:true`。若换机/换签名 profile 需重新确认。

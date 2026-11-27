@@ -86,9 +86,9 @@
       // ★ 必须拿到 ACL 才启用，否则安装失败；
       //   拿到后用 MOTRIX_ENABLE_USER_FILE_PERMISSION=1 构建（build-hap 会临时解注、结束还原）。
       // >>> MOTRIX_USER_FILE_PERMISSION_BEGIN
-      // { "name": "ohos.permission.READ_WRITE_USER_FILE",
-      // "reason": "$string:perm_user_file_reason",
-      // "usedScene": { "abilities": ["EntryAbility"], "when": "always" } }
+      { "name": "ohos.permission.READ_WRITE_USER_FILE",
+      "reason": "$string:perm_user_file_reason",
+      "usedScene": { "abilities": ["EntryAbility"], "when": "always" } }
       // <<< MOTRIX_USER_FILE_PERMISSION_END
     ],
     "abilities": [
