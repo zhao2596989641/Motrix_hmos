@@ -6,7 +6,8 @@
 
 | 轮次 | HAP 体积 | MD5 | 结果 | 说明 |
 |---|---|---|---|---|
-| [r58](r58.md) | 192,272,711 B | `18dc808020a17e36067bfb6678fd1585` | ⏳ 待真机验证 | 继承 r57 修复 + `READ_WRITE_USER_FILE` 权限探针（cli-probe.userFile） |
+| [r59](r59.md) | 192,276,843 B | `2282bcaa757d05929809bfee43cb221c` | ⏳ 待真机验证 | ACL 已生效（目录可读/文件 EACCES）→ 深层探针：lstat/realpath/open/group/真实路径 spawn |
+| [r58](r58.md) | 192,272,711 B | `18dc808020a17e36067bfb6678fd1585` | ⚠️ 真机：ACL 生效但 symlink 文件 EACCES（r59 深挖） | 继承 r57 修复 + `READ_WRITE_USER_FILE` 权限探针（cli-probe.userFile） |
 | [r57](r57.md) | 192,272,711 B | `ca5c046478e1e0b9d6170f306aaf3922` | ⏳ 待真机验证 | 开屏改为「系统 logo → m·o 字标」并去掉 12s 等待；配对码改成 Web UI 显示 |
 | [r56](r56.md) | 192,277,279 B | `c00401ce131a33ec82340ccc6915a639` | ⚠️ 真机反馈：开屏 12s（r57 修）、配对无 PIN（r57 修） | 开屏三段跳修复（增强启动页 + 等 React 挂载）+ 桥端口避开 aria2 + 托盘面板减高 |
 | [r55](r55.md) | 192,059,784 B | `798ad87e51c1e2cb221bae2243cc4442` | ⚠️ 真机反馈：桥端口被 aria2 占用、开屏三段跳（r56 修） | 浏览器扩展通道（MDXP 桥 + 鸿蒙连接提示）+ CLI 环境探测 |

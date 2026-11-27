@@ -3,6 +3,18 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r59 · ACL 生效但文件打不开：symlink/realpath/group 深层探针（2026-11-27）
+
+> r58 aclprobe 真机日志：`READ_WRITE_USER_FILE` 让目录可读（用户目录 170 项、harmonybrew/bin 539 项），
+> 但 `brew`（symlink）、`brew node`（symlink）仍是 EACCES，spawn 也失败。
+
+- 新增 `linkProbe`：对 `brew`/`node` 的 symlink 与真实路径分别输出 `lstat` / `readlink` /
+  `realpath` / `open`（含 errno 与文件头）；
+- 新增 `userFile.groups` / `uid` / `gid`，确认应用进程是否在 `file_manager` 组（文件 mode 770）；
+- spawn 增加真实路径（绕过 symlink）：`brewNodeReal` / `brewReal` / `brewRealViaSh`；
+- 结论分支：realpath 能读 ⇒ CLI 检测可行（exec 另说）；全部 EACCES ⇒ 只能"复制安装命令"。
+- 版本 `2.4.5.59` / `240500059`；徽章 `HarmonyOS Port r59`。
+
 ## r58 · r57 收尾 + READ_WRITE_USER_FILE 权限探针（2026-11-27）
 
 > 目标是把集成里的「命令行工具」往 BitFun 的做法推进：先确认端侧能不能看到/执行用户目录下的

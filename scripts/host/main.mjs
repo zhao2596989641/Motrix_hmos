@@ -784,6 +784,54 @@ function fileProbe(target) {
   }
 }
 
+/**
+ * 文件级探针（r59）：区分"目录能读"与"文件能读"，以及 symlink 是否被沙箱拦。
+ * 返回 lstat / readlink / realpath / open 四组结果，失败各自带 errno。
+ */
+function linkProbe(target) {
+  const report = { target }
+  try {
+    const ls = fs.lstatSync(target)
+    report.lstat = {
+      ok: true,
+      symbolicLink: ls.isSymbolicLink(),
+      mode: (ls.mode & 0o777).toString(8),
+      size: ls.size,
+    }
+    if (ls.isSymbolicLink()) {
+      try { report.link = fs.readlinkSync(target) } catch (error) {
+        report.linkError = error.code || error.message
+      }
+    }
+  } catch (error) {
+    report.lstat = { ok: false, error: error.code || error.message }
+  }
+  try {
+    report.realpath = fs.realpathSync(target)
+  } catch (error) {
+    report.realpathError = error.code || error.message
+  }
+  for (const candidate of [report.realpath, target]) {
+    if (!candidate) continue
+    try {
+      const fd = fs.openSync(candidate, "r")
+      const buffer = Buffer.alloc(96)
+      const read = fs.readSync(fd, buffer, 0, 96, 0)
+      fs.closeSync(fd)
+      report.open = {
+        ok: true,
+        via: candidate === target ? "target" : "realpath",
+        path: candidate,
+        head: buffer.subarray(0, read).toString("utf8").split("\n").slice(0, 2).join(" / "),
+      }
+      break
+    } catch (error) {
+      report.open = { ok: false, via: candidate === target ? "target" : "realpath", error: error.code || error.message }
+    }
+  }
+  return report
+}
+
 function runCliEnvironmentProbe() {
   const brewPrefix = path.join(USER_HOME, ".harmonybrew")
   const npmPrefix = path.join(USER_HOME, "npm")
@@ -818,6 +866,17 @@ function runCliEnvironmentProbe() {
       brewScript: fileProbe(brewBin),
       brewNode: fileProbe(brewNode),
       zsh: fileProbe("/usr/bin/zsh"),
+      // r59：symlink / realpath / 真实文件 open 探针（区分沙箱拦目录还是拦文件）
+      link: {
+        brewScript: linkProbe(brewBin),
+        brewNode: linkProbe(brewNode),
+        brewReal: linkProbe(path.join(brewPrefix, "Homebrew", "bin", "brew")),
+        nodeReal: linkProbe(path.join(brewPrefix, "Cellar", "node", "26.12.0", "bin", "node")),
+        npmrc: linkProbe(path.join(USER_HOME, ".npmrc")),
+      },
+      groups: typeof process.getgroups === "function" ? process.getgroups() : [],
+      uid: typeof process.getuid === "function" ? process.getuid() : -1,
+      gid: typeof process.getgid === "function" ? process.getgid() : -1,
     },
     spawn: {
       shEcho: spawnProbe("sh-echo", sh, ["-c", "printf ok"]),
@@ -827,6 +886,10 @@ function runCliEnvironmentProbe() {
       brewVersion: spawnProbe("brew-version", brewBin, ["--version"], brewEnv),
       brewNpmVersion: spawnProbe("brew-npm", brewNode, [brewNpmCli, "--version"], brewEnv),
       brewViaSh: spawnProbe("brew-via-sh", sh, ["-c", `"${brewBin}" --version`], brewEnv),
+      // r59：真实文件路径（跳过 symlink）—— 判断 EACCES 是 symlink 沙箱拦还是文件本身不可读
+      brewNodeReal: spawnProbe("brew-node-real", path.join(brewPrefix, "Cellar", "node", "26.12.0", "bin", "node"), ["-v"], brewEnv),
+      brewReal: spawnProbe("brew-real", path.join(brewPrefix, "Homebrew", "bin", "brew"), ["--version"], brewEnv),
+      brewRealViaSh: spawnProbe("brew-real-via-sh", sh, ["-c", `"${path.join(brewPrefix, "Homebrew", "bin", "brew")}" --version`], brewEnv),
     },
   }
   try {
