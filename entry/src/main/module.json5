@@ -77,6 +77,19 @@
       "reason": "$string:perm_jit_reason",
       "usedScene": { "abilities": ["EntryAbility"], "when": "always" } }
       // <<< MOTRIX_JIT_PERMISSION_END
+
+      // 受限 ACL：读写 PC/2in1 的**用户目录**（/storage/Users/currentUser）。
+      // 用途：设置 → 集成里的「命令行工具」——检测/调用用户用 Harmonybrew / npm 装好的工具。
+      // 官方可申请场景：「应用为 IDE 或其他开发调测工具，需要读写 PC/2in1 设备上的用户目录，
+      // 如创建软链接，或通过命令行工具操作用户目录文件等」——与本项目场景一致。
+      // 申请：开发者中心 Profile → 受限权限（调试期可让 DevEco 自动签名代办，约 3 个工作日）。
+      // ★ 必须拿到 ACL 才启用，否则安装失败；
+      //   拿到后用 MOTRIX_ENABLE_USER_FILE_PERMISSION=1 构建（build-hap 会临时解注、结束还原）。
+      // >>> MOTRIX_USER_FILE_PERMISSION_BEGIN
+      // { "name": "ohos.permission.READ_WRITE_USER_FILE",
+      // "reason": "$string:perm_user_file_reason",
+      // "usedScene": { "abilities": ["EntryAbility"], "when": "always" } }
+      // <<< MOTRIX_USER_FILE_PERMISSION_END
     ],
     "abilities": [
       {

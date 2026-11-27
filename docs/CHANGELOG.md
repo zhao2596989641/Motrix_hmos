@@ -3,6 +3,20 @@
 > 本项目按「一轮一包」迭代：每轮出 debug HAP、真机验证、记录问题与修法。
 > 完整逐项状态见 `docs/FEATURE-MATRIX.md`；构建见 `docs/BUILD.md`。
 
+## r58 · r57 收尾 + READ_WRITE_USER_FILE 权限探针（2026-11-27）
+
+> 目标是把集成里的「命令行工具」往 BitFun 的做法推进：先确认端侧能不能看到/执行用户目录下的
+> Harmonybrew / npm。r58 加入受限权限声明开关与探针，等 ACL 下发后再出探针包。
+
+- **权限开关**：`module.json5` 增加 `MOTRIX_USER_FILE_PERMISSION` 标记块（默认注释）；
+  `scripts/patch-module-permissions.mjs` 支持 `jit` / `user-file` 两块；
+  `build-hap.sh` 支持 `MOTRIX_ENABLE_USER_FILE_PERMISSION=1`（构建前解注、结束还原；没 ACL 时声明会装不上）。
+- **探针**：`cli-probe.json` 新增 `userFile` 段——用户目录、`.harmonybrew`、`brew` 脚本、
+  `brew node`、`/usr/bin/zsh` 的目录/文件可读性，以及前 3 行内容；配合原有 spawn 结果，
+  可直接判断「没权限 / 有权限但 exec 被拒 / 完全可用」。
+- **gather-logs 假成功修复**（r57 已改，r58 继承）：拉文件前先删本地旧副本。
+- 版本 `2.4.5.58` / `240500058`；徽章 `HarmonyOS Port r58`。
+
 ## r57 · 开屏改成系统 logo → m·o 字标 + 扩展配对码显示（2026-11-27）
 
 > r56 真机两件事：开屏"空前地长"（实际 12.3s）；扩展点配对，Motrix 没有 PIN 弹窗。

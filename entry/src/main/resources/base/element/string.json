@@ -41,6 +41,10 @@
       "value": "用于开启应用内置 JavaScript 引擎（V8）的 JIT 编译以提升运行性能"
     },
     {
+      "name": "perm_user_file_reason",
+      "value": "用于读写用户目录，以检测并调用本机 Harmonybrew / npm 安装的命令行工具"
+    },
+    {
       "name": "BackGroundAbility_desc",
       "value": "后台下载服务（托盘保活）"
     },

@@ -119,18 +119,29 @@ say "5/5 hvigor assembleHap（$MODE）"
 #  · 默认（不设环境变量）：**原样构建**，不擅自改动仓库里的声明；
 #  · MOTRIX_ENABLE_JIT_PERMISSION=1：强制解注（构建后自动还原）——适合仓库默认注释、临时出 JIT 包。
 JIT_PERM="${MOTRIX_ENABLE_JIT_PERMISSION:-0}"
-restore_jit_permission() {
+USER_FILE_PERM="${MOTRIX_ENABLE_USER_FILE_PERMISSION:-0}"
+restore_permissions() {
   if [ "$JIT_PERM" = "1" ]; then
-    "$HVIGOR_NODE" "$HERE/patch-module-permissions.mjs" disable >/dev/null 2>&1 || true
+    "$HVIGOR_NODE" "$HERE/patch-module-permissions.mjs" disable jit >/dev/null 2>&1 || true
+  fi
+  if [ "$USER_FILE_PERM" = "1" ]; then
+    "$HVIGOR_NODE" "$HERE/patch-module-permissions.mjs" disable user-file >/dev/null 2>&1 || true
   fi
 }
+if [ "$JIT_PERM" = "1" ] || [ "$USER_FILE_PERM" = "1" ]; then
+  trap restore_permissions EXIT INT TERM
+fi
 if [ "$JIT_PERM" = "1" ]; then
-  trap restore_jit_permission EXIT INT TERM
-  "$HVIGOR_NODE" "$HERE/patch-module-permissions.mjs" enable
+  "$HVIGOR_NODE" "$HERE/patch-module-permissions.mjs" enable jit
   echo "[jit] 本次构建强制声明 ALLOW_WRITABLE_CODE_MEMORY（需 profile 已有该 ACL）"
-else
+fi
+if [ "$USER_FILE_PERM" = "1" ]; then
+  "$HVIGOR_NODE" "$HERE/patch-module-permissions.mjs" enable user-file
+  echo "[user-file] 本次构建声明 READ_WRITE_USER_FILE（需 profile 已有该 ACL，否则安装失败）"
+fi
+if [ "$JIT_PERM" != "1" ] && [ "$USER_FILE_PERM" != "1" ]; then
   "$HVIGOR_NODE" "$HERE/patch-module-permissions.mjs" status || true
-  echo "[jit] 按 module.json5 当前状态构建（不擅自改动）"
+  echo "[permissions] 按 module.json5 当前状态构建（不擅自改动）"
 fi
 export NODE_HOME="$CLT/node"
 export DEVECO_SDK_HOME="$CLT/sdk"

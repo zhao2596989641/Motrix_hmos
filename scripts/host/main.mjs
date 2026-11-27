@@ -763,6 +763,27 @@ function dirStat(target) {
   }
 }
 
+/** 读文件探针：权限不够时返回 errno（EPERM/EACCES），够时返回大小与前 3 行（排查 brew 脚本头部）。 */
+function fileProbe(target) {
+  try {
+    const stat = fs.statSync(target)
+    if (!stat.isFile()) return { exists: true, kind: "non-file" }
+    const fd = fs.openSync(target, "r")
+    const buffer = Buffer.alloc(160)
+    const read = fs.readSync(fd, buffer, 0, 160, 0)
+    fs.closeSync(fd)
+    return {
+      exists: true,
+      kind: "file",
+      size: stat.size,
+      readable: true,
+      head: buffer.subarray(0, read).toString("utf8").split("\n").slice(0, 3).join(" / "),
+    }
+  } catch (error) {
+    return { exists: false, error: (error && (error.code || error.message)) || "unknown" }
+  }
+}
+
 function runCliEnvironmentProbe() {
   const brewPrefix = path.join(USER_HOME, ".harmonybrew")
   const npmPrefix = path.join(USER_HOME, "npm")
@@ -787,6 +808,16 @@ function runCliEnvironmentProbe() {
       brewNodeModules: dirStat(path.join(brewPrefix, "lib", "node_modules")),
       userNpm: dirStat(path.join(npmPrefix, "lib", "node_modules")),
       userNpmrc: dirStat(path.join(USER_HOME, ".npmrc")),
+    },
+    // r58：READ_WRITE_USER_FILE 探针 —— 目录可不可读、文件能不能打开、brew 脚本头是什么。
+    // 拿到 ACL 后这里会从 EPERM/EACCES 变成 readable:true；没拿到就是最直接的反证。
+    userFile: {
+      home: dirStat(USER_HOME),
+      harmonybrew: dirStat(brewPrefix),
+      harmonybrewBin: dirStat(path.join(brewPrefix, "bin")),
+      brewScript: fileProbe(brewBin),
+      brewNode: fileProbe(brewNode),
+      zsh: fileProbe("/usr/bin/zsh"),
     },
     spawn: {
       shEcho: spawnProbe("sh-echo", sh, ["-c", "printf ok"]),
